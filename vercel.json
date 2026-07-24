@@ -1,10 +1,5 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "pwa/package.json",
-      "use": "@vercel/static-build"
-    }
-  ],
-  "outputDirectory": "pwa/dist"
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

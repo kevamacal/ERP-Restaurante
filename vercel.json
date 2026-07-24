@@ -1,12 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "builds": [
     {
       "src": "pwa/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "pwa/dist"
-      }
+      "use": "@vercel/static-build"
     }
-  ]
+  ],
+  "outputDirectory": "pwa/dist"
 }

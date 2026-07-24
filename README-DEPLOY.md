@@ -77,3 +77,4 @@ Se agregó `vercel.json` para que Vercel use el package.json correcto:
 - El backend/TPV no está desplegado en Vercel: solo se despliega la app React.
 - El frontend consume datos desde Supabase, por lo que necesitas un proyecto Supabase con tablas `locales`, `ventas_resumen_diario` y `ventas_por_hora`.
 - El script `upload_all_to_supabase.py` sirve para sincronizar datos históricos desde `base_datos.db`.
+- Si Vercel despliega desde el root del repositorio, usa el archivo `vercel.json` en la raíz para apuntar al subdirectorio `ERP-Restaurante/pwa`.

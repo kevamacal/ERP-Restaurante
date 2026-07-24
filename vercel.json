@@ -1,15 +1,9 @@
 {
-  "version": 2,
+  "version": 3,
   "builds": [
     {
-      "src": "ERP-Restaurante/pwa/package.json",
+      "src": "pwa/package.json",
       "use": "@vercel/static-build"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "ERP-Restaurante/pwa/$1"
     }
   ]
 }

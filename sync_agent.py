@@ -189,7 +189,7 @@ def run_sync(dbf_dir, local_id, url=None, key=None, target_date=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Agente de sincronización local TPV -> Supabase")
-    parser.add_argument("--dbf-dir", default="archivos", help="Directorio con cabecera.DBF y detalle.DBF")
+    parser.add_argument("--dbf-dir", default="../datos", help="Directorio con cabecera.DBF y detalle.DBF (por defecto: ../datos)")
     parser.add_argument("--local-id", default="local_1", help="ID único del local (ej: local_1)")
     parser.add_argument("--supabase-url", default=os.getenv("SUPABASE_URL"), help="URL del proyecto Supabase")
     parser.add_argument("--supabase-key", default=os.getenv("SUPABASE_KEY"), help="API Key / Service Role Key de Supabase")

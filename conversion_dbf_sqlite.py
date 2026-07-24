@@ -158,7 +158,7 @@ def convert_all_in_folder(folder_path, sqlite_path, encoding='cp1252', batch_siz
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Convertidor masivo de archivos DBF a tablas SQLite.")
-    parser.add_argument("--folder", default="archivos", help="Carpeta que contiene los archivos DBF (por defecto: archivos)")
+    parser.add_argument("--folder", default="../datos", help="Carpeta que contiene los archivos DBF (por defecto: ../datos)")
     parser.add_argument("--sqlite", default="base_datos.db", help="Ruta al archivo SQLite de salida (por defecto: base_datos.db)")
     parser.add_argument("--encoding", default="cp1252", help="Codificación de texto de los DBF (por defecto: cp1252)")
     
@@ -166,6 +166,10 @@ if __name__ == '__main__':
     
     target_folder = args.folder
     if not os.path.exists(target_folder):
-        target_folder = "."
+        fallback_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "datos"))
+        if os.path.exists(fallback_folder):
+            target_folder = fallback_folder
+        else:
+            raise FileNotFoundError(f"La carpeta especificada no existe: {args.folder}")
         
     convert_all_in_folder(target_folder, args.sqlite, encoding=args.encoding)

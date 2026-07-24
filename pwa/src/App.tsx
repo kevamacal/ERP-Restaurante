@@ -18,6 +18,43 @@ export const App: React.FC = () => {
   const [resumenData, setResumenData] = useState<VentasResumen[]>([]);
   const [ventasHoraData, setVentasHoraData] = useState<VentaHora[]>([]);
 
+  const dailyResumenData = React.useMemo(() => {
+    const grouped = new Map<string, VentasResumen>();
+
+    resumenData.forEach((row) => {
+      const dateKey = row.fecha;
+      const existing = grouped.get(dateKey);
+      const totalFacturado = Number(row.total_facturado) || 0;
+      const numTickets = Number(row.num_tickets) || 0;
+      const totalEfectivo = Number(row.total_efectivo) || 0;
+      const totalTarjeta = Number(row.total_tarjeta) || 0;
+      const ultimaActualizacion = row.ultima_actualizacion || new Date().toISOString();
+
+      if (!existing) {
+        grouped.set(dateKey, {
+          local_id: selectedLocal === 'all' ? 'all' : row.local_id,
+          fecha: dateKey,
+          total_facturado: totalFacturado,
+          num_tickets: numTickets,
+          total_efectivo: totalEfectivo,
+          total_tarjeta: totalTarjeta,
+          ultima_actualizacion: ultimaActualizacion
+        });
+      } else {
+        grouped.set(dateKey, {
+          ...existing,
+          total_facturado: existing.total_facturado + totalFacturado,
+          num_tickets: existing.num_tickets + numTickets,
+          total_efectivo: existing.total_efectivo + totalEfectivo,
+          total_tarjeta: existing.total_tarjeta + totalTarjeta,
+          ultima_actualizacion: existing.ultima_actualizacion || ultimaActualizacion
+        });
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }, [resumenData, selectedLocal]);
+
   useEffect(() => {
     document.body.className = theme;
     localStorage.setItem('app_theme', theme);
@@ -108,7 +145,7 @@ export const App: React.FC = () => {
 
   // KPIs de la fecha más reciente
   const computeKPIs = (): SummaryKPI => {
-    if (resumenData.length === 0) {
+    if (dailyResumenData.length === 0) {
       return {
         totalFacturado: 0,
         numTickets: 0,
@@ -120,8 +157,8 @@ export const App: React.FC = () => {
       };
     }
 
-    const targetDate = resumenData[0].fecha;
-    const dayRecords = resumenData.filter((r) => r.fecha === targetDate);
+    const targetDate = dailyResumenData[0].fecha;
+    const dayRecords = dailyResumenData.filter((r) => r.fecha === targetDate);
 
     const totalFacturado = dayRecords.reduce((acc, r) => acc + (Number(r.total_facturado) || 0), 0);
     const numTickets = dayRecords.reduce((acc, r) => acc + (Number(r.num_tickets) || 0), 0);
@@ -311,14 +348,14 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-indigo-400" />
               <h3 className="text-base font-bold text-white font-heading">
-                Registros de Cierres Diarios (Supabase DB)
+                Registros de Días de Cierre (Supabase DB)
               </h3>
             </div>
-            <span className="text-xs text-slate-400">{resumenData.length} registros cargados</span>
+            <span className="text-xs text-slate-400">{dailyResumenData.length} días cargados</span>
           </div>
 
           <div className="overflow-x-auto">
-            {resumenData.length > 0 ? (
+            {dailyResumenData.length > 0 ? (
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
@@ -331,7 +368,7 @@ export const App: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {resumenData.slice(0, 15).map((r, idx) => {
+                  {dailyResumenData.slice(0, 15).map((r, idx) => {
                     const locObj = localesList.find((l) => l.id === r.local_id);
                     const locName = locObj ? locObj.nombre : r.local_id;
                     return (

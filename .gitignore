@@ -1,1 +1,4 @@
 .env
+*.DBF
+*.db
+*.sql

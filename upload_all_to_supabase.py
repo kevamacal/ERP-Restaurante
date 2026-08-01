@@ -59,13 +59,13 @@ def extract_and_seed():
     # 1. Extraer resúmenes agrupados POR FECHA Y TURNO
     print(f"Calculando resúmenes por turno (columna detectada: {turno_col_sql})...")
     
-    query_turnos = f"""
+    query_turnos = """
     SELECT 
-        c.CAB_FECHA as fecha,
-        COALESCE(
-            NULLIF(TRIM(CAST({turno_col_sql} AS TEXT)), ''),
-            CASE WHEN CAST(strftime('%H', c.CAB_HORA) AS INTEGER) < 18 THEN 'comida' ELSE 'cena' END
-        ) as turno,
+        CASE WHEN c.CAB_HORA IS NOT NULL AND CAST(strftime('%H', c.CAB_HORA) AS INTEGER) < 2 
+             THEN date(c.CAB_FECHA, '-1 day') 
+             ELSE c.CAB_FECHA 
+        END as fecha,
+        'diario' as turno,
         ROUND(SUM(d.DET_IMPORT), 2) as total_facturado,
         COUNT(DISTINCT c.CAB_ID) as num_tickets,
         ROUND(SUM(CASE WHEN c.CAB_COBRO = 'E' THEN d.DET_IMPORT ELSE 0 END), 2) as total_efectivo,
@@ -73,8 +73,8 @@ def extract_and_seed():
     FROM cabecera c
     JOIN detalle d ON c.CAB_ID = d.DET_ID
     WHERE c.CAB_ESTADO = 'C' AND c.CAB_FECHA IS NOT NULL
-    GROUP BY c.CAB_FECHA, turno
-    ORDER BY c.CAB_FECHA DESC;
+    GROUP BY fecha, turno
+    ORDER BY fecha DESC;
     """
     cursor.execute(query_turnos)
     rows_turnos = cursor.fetchall()
@@ -99,15 +99,18 @@ def extract_and_seed():
     print("Calculando desglose por hora...")
     query_horas = """
     SELECT 
-        c.CAB_FECHA as fecha,
+        CASE WHEN c.CAB_HORA IS NOT NULL AND CAST(strftime('%H', c.CAB_HORA) AS INTEGER) < 2 
+             THEN date(c.CAB_FECHA, '-1 day') 
+             ELSE c.CAB_FECHA 
+        END as fecha,
         CAST(strftime('%H', c.CAB_HORA) AS INTEGER) as hora,
         ROUND(SUM(d.DET_IMPORT), 2) as total_facturado,
         COUNT(DISTINCT c.CAB_ID) as num_tickets
     FROM cabecera c
     JOIN detalle d ON c.CAB_ID = d.DET_ID
     WHERE c.CAB_ESTADO = 'C' AND c.CAB_FECHA IS NOT NULL AND c.CAB_HORA IS NOT NULL
-    GROUP BY c.CAB_FECHA, hora
-    ORDER BY c.CAB_FECHA DESC, hora ASC;
+    GROUP BY fecha, hora
+    ORDER BY fecha DESC, hora ASC;
     """
     cursor.execute(query_horas)
     rows_horas = cursor.fetchall()

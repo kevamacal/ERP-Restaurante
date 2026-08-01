@@ -590,7 +590,7 @@ def main():
     parser.add_argument("--dbf-dir", default="../datos", help="Directorio con cabecera.DBF y detalle.DBF (modo sync)")
     parser.add_argument("--local-id", default="local_1", help="ID único del local")
     parser.add_argument("--date", default=None, help="Fecha específica a sincronizar (YYYY-MM-DD), por defecto es hoy")
-    parser.add_argument("--interval", type=int, default=0, help="Intervalo de ejecución continua en segundos (0 = ejecutar una sola vez)")
+    parser.add_argument("--interval", type=int, default=600, help="Intervalo de ejecución continua en segundos (0 = ejecutar una sola vez)")
     
     # SQLite Upload Options
     parser.add_argument("--db-path", default="base_datos.db", help="Ruta al archivo SQLite de base de datos (modo upload-all)")

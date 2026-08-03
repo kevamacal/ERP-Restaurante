@@ -409,110 +409,152 @@ class DBFMetricsExtractor:
         logger.info(f"Metrics extraction completed in {elapsed:.3f} seconds.")
         return resumenes_turnos, desglose_horas
 
-class SQLiteMetricsExtractor:
-    """Extracts the entire historical sales metrics from SQLite database."""
-    def __init__(self, db_path: str):
-        self.db_path = db_path
+class DBFHistoricalExtractor:
+    """Extracts the entire historical sales metrics directly from DBF files."""
+    def __init__(self, dbf_dir: str):
+        self.dbf_dir = dbf_dir
+        self.cabecera_path = os.path.join(dbf_dir, "cabecera.DBF")
+        self.detalle_path = os.path.join(dbf_dir, "detalle.DBF")
 
     def extract_all(self, local_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Queries the SQLite database and generates historical daily/shift and hourly lists."""
-        if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"Missing SQLite database file: {self.db_path}")
+        """Scans DBF files and generates historical daily/shift and hourly lists."""
+        if not os.path.exists(self.cabecera_path):
+            raise FileNotFoundError(f"Missing DBF file: {self.cabecera_path}")
+        if not os.path.exists(self.detalle_path):
+            raise FileNotFoundError(f"Missing DBF file: {self.detalle_path}")
 
-        logger.info(f"Opening SQLite database '{self.db_path}' for historical extraction...")
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.cursor()
+        logger.info(f"Scanning DBF files in '{self.dbf_dir}' for historical extraction...")
+        t0 = time.time()
 
-            # Check what columns exist in the cabecera table
-            cursor.execute("PRAGMA table_info(cabecera)")
-            cols = [column[1].upper() for column in cursor.fetchall()]
-            
-            # Default to 'diario' if we don't map to a specific shift column,
-            # or keep it as 'diario' to match the database constraint and original logic.
-            # (Note: we log it just like original script did)
-            turno_col_sql = "NULL"
-            if 'CAB_TURNO' in cols:
-                turno_col_sql = "c.CAB_TURNO"
-            elif 'CAB_CIERRE' in cols:
-                turno_col_sql = "c.CAB_CIERRE"
-            elif 'CAB_Z' in cols:
-                turno_col_sql = "c.CAB_Z"
-            logger.info(f"Detected turn column in SQLite schema: {turno_col_sql}")
+        cab_table = OptimizedDBF(
+            self.cabecera_path,
+            load=False,
+            encoding='cp1252',
+            ignore_missing_memofile=True,
+            char_decode_errors='replace',
+            parserclass=CustomFieldParser
+        )
 
-            # 1. Extract shift summaries (grouped by business date and shift)
-            query_turnos = """
-            SELECT 
-                CASE WHEN c.CAB_HORA IS NOT NULL AND CAST(strftime('%H', c.CAB_HORA) AS INTEGER) < 2 
-                     THEN date(c.CAB_FECHA, '-1 day') 
-                     ELSE c.CAB_FECHA 
-                END as fecha,
-                'diario' as turno,
-                ROUND(SUM(d.DET_IMPORT), 2) as total_facturado,
-                COUNT(DISTINCT c.CAB_ID) as num_tickets,
-                ROUND(SUM(CASE WHEN c.CAB_COBRO = 'E' THEN d.DET_IMPORT ELSE 0 END), 2) as total_efectivo,
-                ROUND(SUM(CASE WHEN c.CAB_COBRO != 'E' THEN d.DET_IMPORT ELSE 0 END), 2) as total_tarjeta
-            FROM cabecera c
-            JOIN detalle d ON c.CAB_ID = d.DET_ID
-            WHERE c.CAB_ESTADO = 'C' AND c.CAB_FECHA IS NOT NULL
-            GROUP BY fecha, turno
-            ORDER BY fecha DESC;
-            """
-            logger.info("Calculating historical shift summaries...")
-            cursor.execute(query_turnos)
-            rows_turnos = cursor.fetchall()
+        closed_tickets = {}
+        for record in cab_table:
+            if record.get('CAB_ESTADO') == 'C':
+                cab_id = record.get('CAB_ID')
+                if cab_id is not None:
+                    rec_date = parse_dbf_date(record.get('CAB_FECHA'))
+                    
+                    hora_raw = record.get('CAB_HORA')
+                    hora_num = 0
+                    if isinstance(hora_raw, (datetime.datetime, datetime.time)):
+                        hora_num = hora_raw.hour
+                    elif isinstance(hora_raw, str):
+                        parts = hora_raw.strip().split()
+                        time_part = parts[-1] if parts else ""
+                        if ":" in time_part:
+                            try:
+                                hora_num = int(time_part.split(":")[0])
+                            except ValueError:
+                                pass
 
-            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            
-            turnos_list = []
-            for r in rows_turnos:
-                turnos_list.append({
-                    "local_id": local_id,
-                    "fecha": r[0],
-                    "turno": str(r[1]),
-                    "total_facturado": float(r[2] or 0.0),
-                    "num_tickets": int(r[3] or 0),
-                    "total_efectivo": float(r[4] or 0.0),
-                    "total_tarjeta": float(r[5] or 0.0),
-                    "ultima_actualizacion": now_iso
-                })
+                    if hora_num < 2:
+                        business_date = rec_date - datetime.timedelta(days=1) if rec_date else None
+                    else:
+                        business_date = rec_date
 
-            # 2. Extract hourly summaries
-            query_horas = """
-            SELECT 
-                CASE WHEN c.CAB_HORA IS NOT NULL AND CAST(strftime('%H', c.CAB_HORA) AS INTEGER) < 2 
-                     THEN date(c.CAB_FECHA, '-1 day') 
-                     ELSE c.CAB_FECHA 
-                END as fecha,
-                CAST(strftime('%H', c.CAB_HORA) AS INTEGER) as hora,
-                ROUND(SUM(d.DET_IMPORT), 2) as total_facturado,
-                COUNT(DISTINCT c.CAB_ID) as num_tickets
-            FROM cabecera c
-            JOIN detalle d ON c.CAB_ID = d.DET_ID
-            WHERE c.CAB_ESTADO = 'C' AND c.CAB_FECHA IS NOT NULL AND c.CAB_HORA IS NOT NULL
-            GROUP BY fecha, hora
-            ORDER BY fecha DESC, hora ASC;
-            """
-            logger.info("Calculating historical hourly breakdown...")
-            cursor.execute(query_horas)
-            rows_horas = cursor.fetchall()
+                    if business_date:
+                        closed_tickets[cab_id] = {
+                            'fecha': business_date.strftime("%Y-%m-%d"),
+                            'hora': hora_num,
+                            'tipo_cobro': record.get('CAB_COBRO', 'E')
+                        }
 
-            horas_list = []
-            for r in rows_horas:
-                if r[1] is not None and 0 <= r[1] <= 23:
-                    horas_list.append({
-                        "local_id": local_id,
-                        "fecha": r[0],
-                        "hora": int(r[1]),
-                        "total_facturado": float(r[2] or 0.0),
-                        "num_tickets": int(r[3] or 0),
-                        "ultima_actualizacion": now_iso
-                    })
+        logger.info(f"  Scanned cabecera.DBF: found {len(closed_tickets):,} closed tickets.")
 
-            logger.info(f"SQLite extraction complete: {len(turnos_list):,} daily/shift records, {len(horas_list):,} hourly records.")
-            return turnos_list, horas_list
-        finally:
-            conn.close()
+        det_table = OptimizedDBF(
+            self.detalle_path,
+            load=False,
+            encoding='cp1252',
+            ignore_missing_memofile=True,
+            char_decode_errors='replace',
+            parserclass=CustomFieldParser
+        )
+
+        ticket_totals = {}
+        processed_count = 0
+        for record in det_table:
+            processed_count += 1
+            if processed_count % 100000 == 0:
+                logger.info(f"  Scanned {processed_count:,} records in detalle.DBF...")
+
+            det_id = record.get('DET_ID')
+            if det_id in closed_tickets:
+                importe = record.get('DET_IMPORT', 0.0)
+                if isinstance(importe, decimal.Decimal):
+                    importe = float(importe)
+                ticket_totals[det_id] = ticket_totals.get(det_id, 0.0) + (importe or 0.0)
+
+        logger.info(f"  Scanned {processed_count:,} records in detalle.DBF. Summed totals.")
+
+        shifts = {}
+        hours = {}
+        for cab_id, meta in closed_tickets.items():
+            amount = ticket_totals.get(cab_id, 0.0)
+            fecha = meta['fecha']
+            hora = meta['hora']
+            tipo_cobro = meta['tipo_cobro']
+
+            s_key = (fecha, 'diario')
+            if s_key not in shifts:
+                shifts[s_key] = {
+                    'total_facturado': 0.0,
+                    'total_efectivo': 0.0,
+                    'total_tarjeta': 0.0,
+                    'num_tickets': 0
+                }
+            shifts[s_key]['total_facturado'] += amount
+            shifts[s_key]['num_tickets'] += 1
+            if tipo_cobro == 'E':
+                shifts[s_key]['total_efectivo'] += amount
+            else:
+                shifts[s_key]['total_tarjeta'] += amount
+
+            h_key = (fecha, hora)
+            if h_key not in hours:
+                hours[h_key] = {
+                    'total_facturado': 0.0,
+                    'num_tickets': 0
+                }
+            hours[h_key]['total_facturado'] += amount
+            hours[h_key]['num_tickets'] += 1
+
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        turnos_list = []
+        for (fecha, shift_id), data in shifts.items():
+            turnos_list.append({
+                "local_id": local_id,
+                "fecha": fecha,
+                "turno": shift_id,
+                "total_facturado": round(data['total_facturado'], 2),
+                "num_tickets": data['num_tickets'],
+                "total_efectivo": round(data['total_efectivo'], 2),
+                "total_tarjeta": round(data['total_tarjeta'], 2),
+                "ultima_actualizacion": now_iso
+            })
+
+        horas_list = []
+        for (fecha, hora), data in hours.items():
+            horas_list.append({
+                "local_id": local_id,
+                "fecha": fecha,
+                "hora": hora,
+                "total_facturado": round(data['total_facturado'], 2),
+                "num_tickets": data['num_tickets'],
+                "ultima_actualizacion": now_iso
+            })
+
+        elapsed = time.time() - t0
+        logger.info(f"DBF historical extraction complete: {len(turnos_list):,} daily/shift records, {len(horas_list):,} hourly records. Time: {elapsed:.2f}s")
+        return turnos_list, horas_list
 
 class SyncAgent:
     """Coordinates TPV data extraction and upload to Supabase."""
@@ -553,14 +595,14 @@ class SyncAgent:
             logger.exception(f"Error during date sync execution: {e}")
             return False
 
-    def run_historical_upload(self, db_path: str) -> bool:
-        """Extracts the entire history from SQLite database and uploads it in batches."""
+    def run_historical_upload(self, dbf_dir: str) -> bool:
+        """Extracts the entire history from DBF files and uploads it in batches."""
         if not self.supabase:
             logger.error("Cannot perform historical upload without Supabase credentials!")
             return False
             
         try:
-            extractor = SQLiteMetricsExtractor(db_path)
+            extractor = DBFHistoricalExtractor(dbf_dir)
             turnos, horas = extractor.extract_all(self.local_id)
             
             t_success = self.supabase.upload_in_batches("ventas_resumen_diario", turnos, "local_id,fecha,turno", batch_size=200)
@@ -584,16 +626,16 @@ def main():
     
     # Mode selection
     parser.add_argument("--mode", choices=["sync", "upload-all"], default="sync",
-                        help="Modo de ejecución: 'sync' para sincronizar fecha/hoy desde DBF; 'upload-all' para subir histórico desde la base de datos")
+                        help="Modo de ejecución: 'sync' para sincronizar fecha específica/hoy desde DBF; 'upload-all' para subir histórico completo desde DBF")
     
     # DBF Sincronización Options
-    parser.add_argument("--dbf-dir", default="../datos", help="Directorio con cabecera.DBF y detalle.DBF (modo sync)")
+    parser.add_argument("--dbf-dir", default="../datos", help="Directorio con cabecera.DBF y detalle.DBF")
     parser.add_argument("--local-id", default="local_1", help="ID único del local")
     parser.add_argument("--date", default=None, help="Fecha específica a sincronizar (YYYY-MM-DD), por defecto es hoy")
     parser.add_argument("--interval", type=int, default=600, help="Intervalo de ejecución continua en segundos (0 = ejecutar una sola vez)")
     
-    # SQLite Upload Options
-    parser.add_argument("--db-path", default="base_datos.db", help="Ruta al archivo SQLite de base de datos (modo upload-all)")
+    # SQLite Upload Options (Deprecated/kept for compatibility)
+    parser.add_argument("--db-path", default="base_datos.db", help="Ruta al archivo SQLite de base de datos (obsoleto)")
     
     # Supabase Configuration (falls back to env variables loaded from .env)
     parser.add_argument("--supabase-url", default=os.getenv("SUPABASE_URL"), help="URL de Supabase")
@@ -616,7 +658,7 @@ def main():
 
     # Process based on mode
     if args.mode == "upload-all":
-        agent.run_historical_upload(args.db_path)
+        agent.run_historical_upload(args.dbf_dir)
     else:
         # Modo 'sync'
         target_date = None

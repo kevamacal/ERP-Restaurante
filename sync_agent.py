@@ -96,8 +96,31 @@ class OptimizedDBF(DBF):
                 mid = (low + high) // 2
                 rec = self.read_single_record(mid, memofile)
                 if rec is None:
-                    low = mid + 1
-                    continue
+                    # Scan outwards to find the nearest non-None record
+                    step = 1
+                    found = False
+                    while True:
+                        left_idx = mid - step
+                        if left_idx >= low:
+                            rec_left = self.read_single_record(left_idx, memofile)
+                            if rec_left is not None:
+                                mid = left_idx
+                                rec = rec_left
+                                found = True
+                                break
+                        right_idx = mid + step
+                        if right_idx <= high:
+                            rec_right = self.read_single_record(right_idx, memofile)
+                            if rec_right is not None:
+                                mid = right_idx
+                                rec = rec_right
+                                found = True
+                                break
+                        if left_idx < low and right_idx > high:
+                            break
+                        step += 1
+                    if not found:
+                        break
                 rec_date = parse_dbf_date(rec.get('CAB_FECHA'))
                 if rec_date is not None and rec_date >= target_date:
                     ans = mid
@@ -117,8 +140,31 @@ class OptimizedDBF(DBF):
                 mid = (low + high) // 2
                 rec = self.read_single_record(mid, memofile)
                 if rec is None:
-                    low = mid + 1
-                    continue
+                    # Scan outwards to find the nearest non-None record
+                    step = 1
+                    found = False
+                    while True:
+                        left_idx = mid - step
+                        if left_idx >= low:
+                            rec_left = self.read_single_record(left_idx, memofile)
+                            if rec_left is not None:
+                                mid = left_idx
+                                rec = rec_left
+                                found = True
+                                break
+                        right_idx = mid + step
+                        if right_idx <= high:
+                            rec_right = self.read_single_record(right_idx, memofile)
+                            if rec_right is not None:
+                                mid = right_idx
+                                rec = rec_right
+                                found = True
+                                break
+                        if left_idx < low and right_idx > high:
+                            break
+                        step += 1
+                    if not found:
+                        break
                 val = rec.get(id_field)
                 if val is not None and val >= target_id:
                     ans = mid
@@ -259,8 +305,9 @@ class DBFMetricsExtractor:
                 
             processed_count += 1
             
-            # Filter for closed tickets
-            if record.get('CAB_ESTADO') == 'C':
+            # Filter for closed and pending tickets
+            cab_estado = record.get('CAB_ESTADO')
+            if cab_estado in ('C', 'c', 'N'):
                 # Parse hour to compute business date
                 hora_raw = record.get('CAB_HORA')
                 hora_num = 0
@@ -437,7 +484,8 @@ class DBFHistoricalExtractor:
 
         closed_tickets = {}
         for record in cab_table:
-            if record.get('CAB_ESTADO') == 'C':
+            cab_estado = record.get('CAB_ESTADO')
+            if cab_estado in ('C', 'c'):
                 cab_id = record.get('CAB_ID')
                 if cab_id is not None:
                     rec_date = parse_dbf_date(record.get('CAB_FECHA'))

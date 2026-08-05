@@ -3,6 +3,8 @@ export interface Local {
   nombre: string;
   direccion?: string;
   activo?: boolean;
+  ip_publica?: string;
+  pin_admin?: string;
 }
 
 export interface VentasResumen {
@@ -39,4 +41,19 @@ export interface HistoricoItem {
   ventas: number;
   gastos: number;
   beneficio: number;
+}
+
+export interface Empleado {
+  id: string;
+  local_id: string;
+  nombre: string;
+  activo: boolean;
+  pin_empleado?: string;
+}
+
+export interface Fichaje {
+  id: string;
+  empleado_id: string;
+  tipo: 'entrada' | 'salida';
+  fecha_hora: string;
 }

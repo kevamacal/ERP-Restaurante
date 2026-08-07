@@ -1,5 +1,5 @@
 import React from 'react';
-import { Store, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Store, RefreshCw, Sun, Moon, Settings } from 'lucide-react';
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -8,6 +8,7 @@ interface HeaderProps {
   locales: { id: string; nombre: string }[];
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,7 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectLocal,
   locales,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onOpenSettings
 }) => {
   return (
     <header className="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-4 py-3 sm:px-6 mb-6">
@@ -54,6 +56,14 @@ export const Header: React.FC<HeaderProps> = ({
               title="Cambiar Tema"
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-450" />}
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
+              title="Configuración"
+            >
+              <Settings className="h-4 w-4 text-indigo-400" />
             </button>
           </div>
         </div>
@@ -94,6 +104,15 @@ export const Header: React.FC<HeaderProps> = ({
               title="Actualizar datos"
             >
               <RefreshCw className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-350 transition-colors border border-slate-700/50"
+              title="Configuración"
+            >
+              <Settings className="h-4 w-4 text-indigo-400" />
             </button>
           </div>
         </div>

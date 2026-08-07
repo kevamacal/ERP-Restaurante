@@ -5,9 +5,38 @@ import { SalesChart } from './components/SalesChart';
 import { HistoricoSection } from './components/HistoricoSection';
 import { getSupabase } from './supabaseClient';
 import type { Local, VentasResumen, VentaHora, SummaryKPI, HistoricoItem, Empleado } from './types';
-import { Euro, Receipt, CreditCard, Banknote, Calendar, RefreshCw, Layers, Clock, UserPlus, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Euro, Receipt, CreditCard, Calendar, RefreshCw, Layers, Clock, UserPlus, Users, ToggleLeft, ToggleRight, Zap, Coins } from 'lucide-react';
 import { ClockInView } from './components/ClockInView';
 import { AdminPinLock } from './components/AdminPinLock';
+import { SettingsModal } from './components/SettingsModal';
+
+const getWeekRange = (offset: number) => {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  return { monday, sunday };
+};
+
+const getWeekDatesList = (monday: Date) => {
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    );
+  }
+  return dates;
+};
 
 export const App: React.FC = () => {
   const [selectedLocal, setSelectedLocal] = useState<string>('all');
@@ -33,6 +62,134 @@ export const App: React.FC = () => {
   const [newEmpName, setNewEmpName] = useState<string>('');
   const [newEmpPin, setNewEmpPin] = useState<string>('0000');
   const [mobileTab, setMobileTab] = useState<'summary' | 'charts' | 'admin'>('summary');
+
+  // Parameters and Metrics
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [foodCostPct, setFoodCostPct] = useState<number>(() => {
+    const val = localStorage.getItem('app_food_cost_pct');
+    return val ? Number(val) : 30;
+  });
+  const [hourlyWage, setHourlyWage] = useState<number>(() => {
+    const val = localStorage.getItem('app_hourly_wage');
+    return val ? Number(val) : 10;
+  });
+  const [fichajesAll, setFichajesAll] = useState<any[]>([]);
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  // Worked hours and labor cost calculations
+  const shiftMetrics = React.useMemo(() => {
+    const dailyHours: Record<string, number> = {};
+    const dailyCost: Record<string, number> = {};
+    const employeeDailyHours: Record<string, Record<string, number>> = {}; // date -> empId -> hours
+
+    const employeeLastEntrada: Record<string, number> = {}; // empId -> timestamp
+
+    // Sort chronologically ascending
+    const sorted = [...fichajesAll].sort(
+      (a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime()
+    );
+
+    sorted.forEach((fic) => {
+      const empId = fic.empleado_id;
+      const time = new Date(fic.fecha_hora);
+      
+      if (fic.tipo === 'entrada') {
+        employeeLastEntrada[empId] = time.getTime();
+      } else if (fic.tipo === 'salida') {
+        const entradaTime = employeeLastEntrada[empId];
+        if (entradaTime) {
+          const diffHours = (time.getTime() - entradaTime) / (1000 * 60 * 60);
+          // Capping shift at 16 hours to handle missing check-outs
+          const validHours = diffHours > 16 ? 8 : Math.max(0, diffHours);
+          
+          // Cost rate: specific employee's rate, fallback to global settings
+          const rate = fic.empleados?.coste_hora !== undefined && fic.empleados?.coste_hora !== null
+            ? Number(fic.empleados.coste_hora)
+            : hourlyWage;
+          const shiftCost = validHours * rate;
+
+          // Use entry date in local timezone to match business date
+          const d = new Date(entradaTime);
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
+          dailyHours[dateStr] = (dailyHours[dateStr] || 0) + validHours;
+          dailyCost[dateStr] = (dailyCost[dateStr] || 0) + shiftCost;
+
+          if (!employeeDailyHours[dateStr]) {
+            employeeDailyHours[dateStr] = {};
+          }
+          employeeDailyHours[dateStr][empId] = (employeeDailyHours[dateStr][empId] || 0) + validHours;
+
+          delete employeeLastEntrada[empId];
+        }
+      }
+    });
+
+    return {
+      dailyHours,
+      dailyCost,
+      employeeDailyHours
+    };
+  }, [fichajesAll, hourlyWage]);
+
+  const dailyWorkedHours = React.useMemo(() => shiftMetrics.dailyHours, [shiftMetrics]);
+
+  // Weekly payments calculation
+  const weeklyPaymentsData = React.useMemo(() => {
+    const { monday, sunday } = getWeekRange(weekOffset);
+    const datesInWeek = getWeekDatesList(monday);
+    
+    // Group by employee
+    const employeePayments: Record<string, { id: string; name: string; hours: number; rate: number; total: number }> = {};
+
+    // First initialize with all employees from adminEmployees so they appear even with 0 hours
+    adminEmployees.forEach((emp) => {
+      const rate = emp.coste_hora !== undefined && emp.coste_hora !== null
+        ? Number(emp.coste_hora)
+        : hourlyWage;
+      employeePayments[emp.id] = {
+        id: emp.id,
+        name: emp.nombre,
+        hours: 0,
+        rate: rate,
+        total: 0
+      };
+    });
+
+    // Sum hours from shiftMetrics.employeeDailyHours for the dates in this week
+    datesInWeek.forEach((dateStr) => {
+      const dayHours = shiftMetrics.employeeDailyHours[dateStr];
+      if (dayHours) {
+        Object.entries(dayHours).forEach(([empId, hours]) => {
+          if (employeePayments[empId]) {
+            employeePayments[empId].hours += hours;
+            employeePayments[empId].total = employeePayments[empId].hours * employeePayments[empId].rate;
+          } else {
+            // Fallback for deactivated or deleted employee
+            const relatedFic = fichajesAll.find((f) => f.empleado_id === empId);
+            const name = relatedFic?.empleados?.nombre || 'Desconocido';
+            const rate = relatedFic?.empleados?.coste_hora !== undefined && relatedFic?.empleados?.coste_hora !== null
+              ? Number(relatedFic.empleados.coste_hora)
+              : hourlyWage;
+            employeePayments[empId] = {
+              id: empId,
+              name,
+              hours: hours,
+              rate,
+              total: hours * rate
+            };
+          }
+        });
+      }
+    });
+
+    return {
+      mondayDate: monday,
+      sundayDate: sunday,
+      list: Object.values(employeePayments).sort((a, b) => b.total - a.total),
+      grandTotal: Object.values(employeePayments).reduce((acc, emp) => acc + emp.total, 0)
+    };
+  }, [weekOffset, adminEmployees, shiftMetrics, hourlyWage, fichajesAll]);
 
   const dailyResumenData = React.useMemo(() => {
     const grouped = new Map<string, VentasResumen>();
@@ -141,6 +298,33 @@ export const App: React.FC = () => {
         } else {
           setVentasHoraData([]);
         }
+
+        // Fetch all clock-ins to compute worked hours
+        let queryFic = supabase
+          .from('fichajes')
+          .select('*, empleados!inner(nombre, local_id, coste_hora)');
+        if (selectedLocal !== 'all') {
+          queryFic = queryFic.eq('empleados.local_id', selectedLocal);
+        }
+        let { data: ficsData, error: ficsErr } = await queryFic.order('fecha_hora', { ascending: true });
+        
+        if (ficsErr) {
+          // Fallback if coste_hora column does not exist
+          let queryFallback = supabase
+            .from('fichajes')
+            .select('*, empleados!inner(nombre, local_id)');
+          if (selectedLocal !== 'all') {
+            queryFallback = queryFallback.eq('empleados.local_id', selectedLocal);
+          }
+          const { data, error } = await queryFallback.order('fecha_hora', { ascending: true });
+          ficsData = data;
+          ficsErr = error;
+        }
+
+        if (!ficsErr && ficsData) {
+          setFichajesAll(ficsData);
+          setFichajesList([...ficsData].reverse().slice(0, 50));
+        }
       }
     } catch (e) {
       console.error('Error cargando ventas de Supabase:', e);
@@ -189,19 +373,31 @@ export const App: React.FC = () => {
       const { data: emps } = await queryEmp;
       if (emps) setAdminEmployees(emps);
 
-      // 2. Fetch recent clock-ins
+      // 2. Fetch all clock-ins
       let queryFic = supabase
         .from('fichajes')
-        .select('*, empleados(nombre, local_id)')
-        .order('fecha_hora', { ascending: false })
-        .limit(50);
+        .select('*, empleados!inner(nombre, local_id, coste_hora)');
+      if (selectedLocal !== 'all') {
+        queryFic = queryFic.eq('empleados.local_id', selectedLocal);
+      }
+      let { data: ficsData, error: ficsErr } = await queryFic.order('fecha_hora', { ascending: true });
       
-      const { data: fics } = await queryFic;
-      if (fics) {
-        const filteredFics = selectedLocal === 'all'
-          ? fics
-          : fics.filter((f: any) => f.empleados?.local_id === selectedLocal);
-        setFichajesList(filteredFics);
+      if (ficsErr) {
+        // Fallback in case coste_hora column does not exist yet
+        let queryFallback = supabase
+          .from('fichajes')
+          .select('*, empleados!inner(nombre, local_id)');
+        if (selectedLocal !== 'all') {
+          queryFallback = queryFallback.eq('empleados.local_id', selectedLocal);
+        }
+        const { data, error } = await queryFallback.order('fecha_hora', { ascending: true });
+        ficsData = data;
+        ficsErr = error;
+      }
+
+      if (ficsData) {
+        setFichajesAll(ficsData);
+        setFichajesList([...ficsData].reverse().slice(0, 50));
       }
     } catch (e) {
       console.error('Error fetching admin horario data:', e);
@@ -256,6 +452,29 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleUpdateEmployeeRate = async (id: string, rate: number) => {
+    // Optimistic update
+    setAdminEmployees((prev) =>
+      prev.map((emp) => (emp.id === id ? { ...emp, coste_hora: rate } : emp))
+    );
+
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('empleados')
+        .update({ coste_hora: rate })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error updating hourly rate:', error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const computeKPIs = (): SummaryKPI => {
     if (dailyResumenData.length === 0) {
       return {
@@ -265,7 +484,11 @@ export const App: React.FC = () => {
         totalTarjeta: 0,
         ticketMedio: 0,
         ultimaActualizacion: new Date().toISOString(),
-        comparativaPct: 0
+        comparativaPct: 0,
+        costePersonal: 0,
+        laborCostPct: 0,
+        productividad: 0,
+        horasTrabajadas: 0
       };
     }
 
@@ -279,6 +502,11 @@ export const App: React.FC = () => {
     const ticketMedio = numTickets > 0 ? totalFacturado / numTickets : 0;
     const lastUpdate = dayRecords[0].ultima_actualizacion || new Date().toISOString();
 
+    const horasTrabajadas = dailyWorkedHours[targetDate] || 0;
+    const costePersonal = shiftMetrics.dailyCost[targetDate] || 0;
+    const laborCostPct = totalFacturado > 0 ? (costePersonal / totalFacturado) * 100 : 0;
+    const productividad = horasTrabajadas > 0 ? totalFacturado / horasTrabajadas : 0;
+
     return {
       totalFacturado,
       numTickets,
@@ -286,18 +514,25 @@ export const App: React.FC = () => {
       totalTarjeta,
       ticketMedio,
       ultimaActualizacion: lastUpdate,
-      comparativaPct: 12.4
+      comparativaPct: 12.4,
+      costePersonal,
+      laborCostPct,
+      productividad,
+      horasTrabajadas
     };
   };
 
   const computeHistoricos = () => {
-    const semanalMap: Record<string, { tickets: number; ventas: number }> = {};
-    const mensualMap: Record<string, { tickets: number; ventas: number }> = {};
-    const anualMap: Record<string, { tickets: number; ventas: number }> = {};
+    const semanalMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
+    const mensualMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
+    const anualMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
 
     resumenData.forEach((row) => {
       const d = new Date(row.fecha);
       if (Number.isNaN(d.getTime())) return;
+
+      const dateStr = row.fecha; // YYYY-MM-DD
+      const horas = dailyWorkedHours[dateStr] || 0;
 
       const ano = d.getFullYear().toString();
       const mes = `${ano}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -309,26 +544,53 @@ export const App: React.FC = () => {
       const v = Number(row.total_facturado) || 0;
       const t = Number(row.num_tickets) || 0;
 
-      if (!anualMap[ano]) anualMap[ano] = { tickets: 0, ventas: 0 };
+      if (!anualMap[ano]) anualMap[ano] = { tickets: 0, ventas: 0, horas: 0 };
       anualMap[ano].tickets += t;
       anualMap[ano].ventas += v;
+      anualMap[ano].horas += horas;
 
-      if (!mensualMap[mes]) mensualMap[mes] = { tickets: 0, ventas: 0 };
+      if (!mensualMap[mes]) mensualMap[mes] = { tickets: 0, ventas: 0, horas: 0 };
       mensualMap[mes].tickets += t;
       mensualMap[mes].ventas += v;
+      mensualMap[mes].horas += horas;
 
-      if (!semanalMap[semana]) semanalMap[semana] = { tickets: 0, ventas: 0 };
+      if (!semanalMap[semana]) semanalMap[semana] = { tickets: 0, ventas: 0, horas: 0 };
       semanalMap[semana].tickets += t;
       semanalMap[semana].ventas += v;
+      semanalMap[semana].horas += horas;
     });
 
-    const formatItems = (map: Record<string, { tickets: number; ventas: number }>, prefix = '', limit = 12): HistoricoItem[] => {
+    const formatItems = (map: Record<string, { tickets: number; ventas: number; horas: number }>, prefix = '', limit = 12): HistoricoItem[] => {
       return Object.keys(map)
         .sort((a, b) => b.localeCompare(a))
         .slice(0, limit)
         .map((key) => {
           const v = map[key].ventas;
-          const g = v * 0.35;
+          
+          // Costes = Materia prima (foodCostPct%) + Personal (horas * hourlyWage)
+          const costeMateriaPrima = v * (foodCostPct / 100);
+          
+          // Sum up shiftMetrics.dailyCost for dates that fall into this period
+          let costePersonal = 0;
+          Object.keys(shiftMetrics.dailyCost).forEach((dateStr) => {
+            const d = new Date(dateStr);
+            const ano = d.getFullYear().toString();
+            const mes = `${ano}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const firstJan = new Date(d.getFullYear(), 0, 1);
+            const weekNum = Math.ceil((((d.getTime() - firstJan.getTime()) / 86400000) + firstJan.getDay() + 1) / 7);
+            const semana = `${ano}-W${String(weekNum).padStart(2, '0')}`;
+
+            if (prefix === 'Año ' && key === ano) {
+              costePersonal += shiftMetrics.dailyCost[dateStr];
+            } else if (prefix === '' && key === mes) {
+              costePersonal += shiftMetrics.dailyCost[dateStr];
+            } else if (prefix === 'Semana ' && key === semana) {
+              costePersonal += shiftMetrics.dailyCost[dateStr];
+            }
+          });
+
+          const g = costeMateriaPrima + costePersonal;
+
           return {
             periodo: `${prefix}${key}`,
             tickets: map[key].tickets,
@@ -396,6 +658,7 @@ export const App: React.FC = () => {
         ]}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
@@ -457,19 +720,19 @@ export const App: React.FC = () => {
             />
 
             <KPICard
-              title="Cobros en Tarjeta"
-              value={`${kpis.totalTarjeta.toFixed(2)} €`}
-              subtitle={`${((kpis.totalTarjeta / (kpis.totalFacturado || 1)) * 100).toFixed(0)}% del ingreso total`}
-              icon={CreditCard}
+              title="Coste Personal Est."
+              value={`${(kpis.costePersonal || 0).toFixed(2)} €`}
+              subtitle={`${(kpis.horasTrabajadas || 0).toFixed(1)}h fichadas | ${(kpis.laborCostPct || 0).toFixed(1)}% ventas`}
+              icon={Users}
               color="violet"
             />
 
             <KPICard
-              title="Cobros en Efectivo"
-              value={`${kpis.totalEfectivo.toFixed(2)} €`}
-              subtitle={`${((kpis.totalEfectivo / (kpis.totalFacturado || 1)) * 100).toFixed(0)}% del ingreso total`}
-              icon={Banknote}
-              color="amber"
+              title="Productividad / Hora"
+              value={`${(kpis.productividad || 0).toFixed(2)} €/h`}
+              subtitle="Ventas medias por hora-trabajador"
+              icon={Zap}
+              color="cyan"
             />
           </div>
 
@@ -609,24 +872,98 @@ export const App: React.FC = () => {
                     <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-800/60 pr-1">
                       {adminEmployees.length > 0 ? (
                         adminEmployees.map((emp) => (
-                          <div key={emp.id} className="py-2.5 flex items-center justify-between text-xs">
-                            <span className={`font-semibold ${emp.activo ? 'text-white' : 'text-slate-500 line-through'}`}>{emp.nombre}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleEmployeeActive(emp.id, emp.activo)}
-                              className="text-slate-400 hover:text-white transition-colors cursor-pointer"
-                            >
-                              {emp.activo ? (
-                                <ToggleRight className="h-5 w-5 text-emerald-400" />
-                              ) : (
-                                <ToggleLeft className="h-5 w-5 text-slate-600" />
-                              )}
-                            </button>
+                          <div key={emp.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
+                            <span className={`font-semibold truncate flex-1 ${emp.activo ? 'text-white' : 'text-slate-500 line-through'}`}>{emp.nombre}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  value={emp.coste_hora ?? ''}
+                                  placeholder={hourlyWage.toString()}
+                                  onChange={(e) => handleUpdateEmployeeRate(emp.id, e.target.value === '' ? hourlyWage : Number(e.target.value))}
+                                  className="w-12 bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-0.5 text-[11px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
+                                />
+                                <span className="text-[10px] text-slate-500 font-semibold">€/h</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleEmployeeActive(emp.id, emp.activo)}
+                                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              >
+                                {emp.activo ? (
+                                  <ToggleRight className="h-5 w-5 text-emerald-400" />
+                                ) : (
+                                  <ToggleLeft className="h-5 w-5 text-slate-600" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         ))
                       ) : (
                         <p className="text-center py-4 text-slate-500 text-[11px]">No hay empleados registrados.</p>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Resumen Semanal de Pagos */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <Coins className="h-4 w-4" /> Pagos Semanales
+                      </h4>
+                      <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-850 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setWeekOffset((o) => o - 1)}
+                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors"
+                        >
+                          &lt;
+                        </button>
+                        <span className="px-2 text-slate-355 font-semibold">
+                          {weekOffset === 0 ? 'Esta Sem.' : weekOffset === -1 ? 'Sem. Pasada' : `S${weekOffset}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
+                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors disabled:opacity-30"
+                          disabled={weekOffset === 0}
+                        >
+                          &gt;
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Rango: <span className="font-mono text-slate-200">{weeklyPaymentsData.mondayDate.toLocaleDateString('es-ES', {day: 'numeric', month: 'short'})}</span> al <span className="font-mono text-slate-200">{weeklyPaymentsData.sundayDate.toLocaleDateString('es-ES', {day: 'numeric', month: 'short'})}</span>
+                    </p>
+
+                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-800/50">
+                      {weeklyPaymentsData.list.length > 0 ? (
+                        weeklyPaymentsData.list.map((emp) => (
+                          <div key={emp.id} className="pt-2 flex items-center justify-between text-xs font-semibold">
+                            <div>
+                              <span className="text-slate-200 font-bold block">{emp.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {emp.hours.toFixed(1)}h × {emp.rate.toFixed(1)}€
+                              </span>
+                            </div>
+                            <span className="font-bold text-emerald-400 font-mono text-right">
+                              {emp.total.toFixed(2)} €
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-slate-500 text-[10px]">Sin horas trabajadas esta semana.</p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-450 font-bold font-mono">
+                      <span>Total Liquidación</span>
+                      <span className="font-bold text-emerald-400 text-sm font-mono">
+                        {weeklyPaymentsData.grandTotal.toFixed(2)} €
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -737,19 +1074,19 @@ export const App: React.FC = () => {
                 />
 
                 <KPICard
-                  title="En Tarjeta"
-                  value={`${kpis.totalTarjeta.toFixed(1)} €`}
-                  subtitle={`${pctTarjeta}% del total`}
-                  icon={CreditCard}
+                  title="Personal Est."
+                  value={`${(kpis.costePersonal || 0).toFixed(0)} € (${(kpis.laborCostPct || 0).toFixed(0)}%)`}
+                  subtitle={`${(kpis.horasTrabajadas || 0).toFixed(1)}h fichadas`}
+                  icon={Users}
                   color="violet"
                 />
 
                 <KPICard
-                  title="En Efectivo"
-                  value={`${kpis.totalEfectivo.toFixed(1)} €`}
-                  subtitle={`${pctEfectivo}% del total`}
-                  icon={Banknote}
-                  color="amber"
+                  title="Productividad"
+                  value={`${(kpis.productividad || 0).toFixed(1)} €/h`}
+                  subtitle="Ventas / Hora-trabajo"
+                  icon={Zap}
+                  color="cyan"
                 />
               </div>
 
@@ -936,22 +1273,96 @@ export const App: React.FC = () => {
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">Plantilla ({adminEmployees.length})</span>
                       <div className="max-h-[140px] overflow-y-auto divide-y divide-slate-800/60 pr-1">
                         {adminEmployees.map((emp) => (
-                          <div key={emp.id} className="py-2 flex items-center justify-between text-xs">
-                            <span className={`font-semibold ${emp.activo ? 'text-white' : 'text-slate-500 line-through'}`}>{emp.nombre}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleEmployeeActive(emp.id, emp.activo)}
-                              className="text-slate-400 hover:text-white transition-colors cursor-pointer"
-                            >
-                              {emp.activo ? (
-                                <ToggleRight className="h-5 w-5 text-emerald-400" />
-                              ) : (
-                                <ToggleLeft className="h-5 w-5 text-slate-650" />
-                              )}
-                            </button>
+                          <div key={emp.id} className="py-2 flex items-center justify-between text-xs gap-3">
+                            <span className={`font-semibold truncate flex-1 ${emp.activo ? 'text-white' : 'text-slate-500 line-through'}`}>{emp.nombre}</span>
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  value={emp.coste_hora ?? ''}
+                                  placeholder={hourlyWage.toString()}
+                                  onChange={(e) => handleUpdateEmployeeRate(emp.id, e.target.value === '' ? hourlyWage : Number(e.target.value))}
+                                  className="w-11 bg-slate-950 border border-slate-800 rounded-lg px-1 py-0.5 text-[10px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
+                                />
+                                <span className="text-[9px] text-slate-500 font-semibold">€/h</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleEmployeeActive(emp.id, emp.activo)}
+                                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              >
+                                {emp.activo ? (
+                                  <ToggleRight className="h-5 w-5 text-emerald-400" />
+                                ) : (
+                                  <ToggleLeft className="h-5 w-5 text-slate-655" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Resumen Semanal de Pagos Mobile */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <Coins className="h-4 w-4" /> Pagos Semanales
+                      </h4>
+                      <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-850 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setWeekOffset((o) => o - 1)}
+                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors"
+                        >
+                          &lt;
+                        </button>
+                        <span className="px-2 text-slate-350 font-semibold">
+                          {weekOffset === 0 ? 'Esta Sem.' : weekOffset === -1 ? 'Sem. Pasada' : `S${weekOffset}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setWeekOffset((o) => Math.min(0, o + 1))}
+                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors disabled:opacity-30"
+                          disabled={weekOffset === 0}
+                        >
+                          &gt;
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Rango: <span className="font-mono text-slate-200">{weeklyPaymentsData.mondayDate.toLocaleDateString('es-ES', {day: 'numeric', month: 'short'})}</span> al <span className="font-mono text-slate-200">{weeklyPaymentsData.sundayDate.toLocaleDateString('es-ES', {day: 'numeric', month: 'short'})}</span>
+                    </p>
+
+                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-800/50">
+                      {weeklyPaymentsData.list.length > 0 ? (
+                        weeklyPaymentsData.list.map((emp) => (
+                          <div key={emp.id} className="pt-2 flex items-center justify-between text-xs font-semibold">
+                            <div>
+                              <span className="text-slate-200 font-bold block">{emp.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {emp.hours.toFixed(1)}h × {emp.rate.toFixed(1)}€
+                              </span>
+                            </div>
+                            <span className="font-bold text-emerald-400 font-mono text-right">
+                              {emp.total.toFixed(2)} €
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-4 text-slate-500 text-[10px]">Sin horas trabajadas esta semana.</p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-450 font-bold font-mono">
+                      <span>Total Liquidación</span>
+                      <span className="font-bold text-emerald-400 text-sm font-mono">
+                        {weeklyPaymentsData.grandTotal.toFixed(2)} €
+                      </span>
                     </div>
                   </div>
 
@@ -1067,6 +1478,16 @@ export const App: React.FC = () => {
           <span className="h-1 w-1 opacity-0 scale-50" />
         </button>
       </div>
+      
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSaved={() => {
+          setFoodCostPct(Number(localStorage.getItem('app_food_cost_pct') || '30'));
+          setHourlyWage(Number(localStorage.getItem('app_hourly_wage') || '10'));
+          fetchData();
+        }}
+      />
     </div>
   );
 };

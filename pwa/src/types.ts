@@ -33,6 +33,10 @@ export interface SummaryKPI {
   ticketMedio: number;
   ultimaActualizacion: string;
   comparativaPct: number;
+  costePersonal?: number;
+  laborCostPct?: number;
+  productividad?: number;
+  horasTrabajadas?: number;
 }
 
 export interface HistoricoItem {
@@ -49,6 +53,7 @@ export interface Empleado {
   nombre: string;
   activo: boolean;
   pin_empleado?: string;
+  coste_hora?: number;
 }
 
 export interface Fichaje {

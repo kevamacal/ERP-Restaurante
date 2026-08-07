@@ -38,13 +38,22 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Quick Status Pill Mobile */}
-          <div className="flex sm:hidden items-center gap-2">
+          <div className="flex sm:hidden items-center gap-1.5">
             <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
+              title="Actualizar datos"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
               onClick={onToggleTheme}
-              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300"
+              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
               title="Cambiar Tema"
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-450" />}
             </button>
           </div>
         </div>
@@ -55,6 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
             {locales.map((loc) => (
               <button
                 key={loc.id}
+                type="button"
                 onClick={() => onSelectLocal(loc.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap ${
                   selectedLocal === loc.id
@@ -69,6 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="hidden sm:flex items-center gap-2">
             <button
+              type="button"
               onClick={onToggleTheme}
               className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/50"
               title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
@@ -77,6 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={onRefresh}
               className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/50"
               title="Actualizar datos"

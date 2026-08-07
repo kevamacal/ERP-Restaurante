@@ -54,29 +54,29 @@ export const KPICard: React.FC<KPICardProps> = ({
   const styles = colorMap[color];
 
   return (
-    <div className={`glass-card p-5 rounded-2xl border ${styles.glow} relative overflow-hidden group`}>
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <div className={`glass-card p-3.5 sm:p-5 rounded-2xl border ${styles.glow} relative overflow-hidden group`}>
+      <div className="flex items-start justify-between mb-2.5 sm:mb-3">
+        <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 truncate pr-2">
           {title}
         </span>
-        <div className={`p-2.5 rounded-xl border ${styles.iconBg} group-hover:scale-110 transition-transform`}>
-          <Icon className="h-5 w-5" />
+        <div className={`p-1.5 sm:p-2.5 rounded-xl border shrink-0 ${styles.iconBg} group-hover:scale-110 transition-transform`}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between">
-        <div className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight">
+      <div className="flex items-baseline justify-between gap-1 flex-wrap">
+        <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white font-heading tracking-tight truncate">
           {value}
         </div>
         {badgeText && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${styles.badge}`}>
+          <span className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-xs font-semibold border ${styles.badge}`}>
             {badgeText}
           </span>
         )}
       </div>
 
       {subtitle && (
-        <p className="text-xs text-slate-400 mt-2 font-medium">
+        <p className="text-[10px] sm:text-xs text-slate-400 mt-1.5 sm:mt-2 font-medium leading-tight">
           {subtitle}
         </p>
       )}

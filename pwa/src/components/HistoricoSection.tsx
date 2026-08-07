@@ -48,6 +48,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
 
         <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button
+            type="button"
             onClick={() => setPeriodoTab('semanal')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'semanal'
@@ -58,6 +59,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             Semanales
           </button>
           <button
+            type="button"
             onClick={() => setPeriodoTab('mensual')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'mensual'
@@ -68,6 +70,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             Mensuales
           </button>
           <button
+            type="button"
             onClick={() => setPeriodoTab('anual')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'anual'
@@ -105,7 +108,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
       </div>
 
       {/* Recharts Bar Chart */}
-      <div className="h-64 w-full pt-2">
+      <div className="h-52 sm:h-64 w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={currentData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <XAxis dataKey="periodo" stroke="#64748b" fontSize={11} tickLine={false} />
@@ -127,8 +130,8 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
         </ResponsiveContainer>
       </div>
 
-      {/* Detail Table */}
-      <div className="overflow-x-auto pt-2">
+      {/* Detail Table (Desktop only) */}
+      <div className="hidden md:block overflow-x-auto pt-2">
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
@@ -140,8 +143,8 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50 font-medium">
-            {currentData.map((row, idx) => (
-              <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+            {currentData.map((row) => (
+              <tr key={row.periodo} className="hover:bg-slate-800/30 transition-colors">
                 <td className="py-2.5 px-3 font-semibold text-white">{row.periodo}</td>
                 <td className="py-2.5 px-3 text-center font-mono">{row.tickets.toLocaleString('es-ES')}</td>
                 <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-bold">
@@ -157,6 +160,34 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Detail List (Mobile only) */}
+      <div className="block md:hidden space-y-3 pt-2">
+        {currentData.map((row) => (
+          <div key={row.periodo} className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-white">{row.periodo}</span>
+              <span className="px-2.5 py-0.5 rounded-lg bg-slate-900 border border-slate-850 font-mono text-[10px] text-slate-350 font-bold">
+                Tickets: {row.tickets.toLocaleString('es-ES')}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-[11px]">
+              <div>
+                <span className="text-slate-500 block text-[9px] font-semibold uppercase">Ventas</span>
+                <span className="font-mono text-emerald-400 font-bold">{row.ventas.toLocaleString('es-ES', { minimumFractionDigits: 1 })} €</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[9px] font-semibold uppercase">Gastos</span>
+                <span className="font-mono text-rose-400 font-bold">{row.gastos.toLocaleString('es-ES', { minimumFractionDigits: 1 })} €</span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-500 block text-[9px] font-semibold uppercase">Beneficio</span>
+                <span className="font-mono text-indigo-400 font-extrabold text-xs">{row.beneficio.toLocaleString('es-ES', { minimumFractionDigits: 1 })} €</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

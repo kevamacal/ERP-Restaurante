@@ -48,7 +48,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           </span>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-52 sm:h-64 w-full">
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -70,7 +70,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
                   }}
                   formatter={(value: any) => [`${value} €`, 'Total Facturado']}
-                  labelFormatter={(label) => `Hora: ${label}`}
+                  labelFormatter={(label) => `Hora: ${typeof label === 'string' || typeof label === 'number' ? label : ''}`}
                 />
                 <Area
                   type="monotone"

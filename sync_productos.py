@@ -136,13 +136,27 @@ def main():
             group_id = r.get('ART_GRUPO', '').strip()
             categoria = CATEGORIES_MAP.get(group_id, 'Otros')
             
-            # Extract price (defaulting to Tariff 1)
+            # Extract prices (T1 = Tariff 1 / Tapas, T2 = Tariff 2 / Platos)
             precio_raw = r.get('ART_TVENT1', 0.0)
+            precio_t2_raw = r.get('ART_TVENT2', 0.0)
             try:
-                precio = float(precio_raw)
+                precio_t1 = float(precio_raw)
             except Exception:
-                precio = 0.0
-                
+                precio_t1 = 0.0
+            try:
+                precio_t2 = float(precio_t2_raw)
+            except Exception:
+                precio_t2 = 0.0
+
+            # If Tariff 2 (Plato) exists, then Tariff 1 is Tapa and Tariff 2 is Plato.
+            # Otherwise, Tariff 1 is the single price (which we treat as Plato).
+            if precio_t2 > 0:
+                precio_tapa = precio_t1
+                precio_plato = precio_t2
+            else:
+                precio_tapa = None
+                precio_plato = precio_t1
+
             activo = not r.get('ART_BAJA', False)
             
             # Memo text fields
@@ -162,7 +176,9 @@ def main():
                 "codigo": codigo,
                 "nombre": nombre,
                 "categoria": categoria,
-                "precio": round(precio, 2),
+                "precio": round(precio_t1, 2),
+                "precio_tapa": round(precio_tapa, 2) if precio_tapa is not None else None,
+                "precio_plato": round(precio_plato, 2) if precio_plato is not None else None,
                 "activo": activo,
                 "caracteristicas": caracteristicas if caracteristicas else None,
                 "imagen_url": imagen_url if imagen_url else None

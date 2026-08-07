@@ -615,8 +615,32 @@ class SyncAgent:
             self.supabase = None
             logger.warning("Running in TEST mode (no Supabase credentials provided). Data will not be uploaded.")
 
+    def update_public_ip(self) -> bool:
+        """Retrieves and updates the local public IP address in Supabase."""
+        if not self.supabase:
+            return True
+        
+        logger.info("Detecting public IP address...")
+        ip = None
+        try:
+            req = urllib.request.Request("https://api.ipify.org?format=json", headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                ip = data.get("ip")
+        except Exception as e:
+            logger.error(f"Could not retrieve public IP address: {e}")
+            
+        if ip:
+            logger.info(f"Local public IP detected: {ip}. Uploading to Supabase...")
+            try:
+                return self.supabase.upload_in_batches("locales", [{"id": self.local_id, "ip_publica": ip}], "id", batch_size=1)
+            except Exception as e:
+                logger.error(f"Error uploading public IP to Supabase: {e}")
+        return False
+
     def run_date_sync(self, dbf_dir: str, target_date: Optional[datetime.date] = None) -> bool:
         """Runs a synchronization cycle for a specific business date using DBF files."""
+        self.update_public_ip()
         if target_date is None:
             target_date = datetime.date.today()
             
@@ -649,6 +673,7 @@ class SyncAgent:
             logger.error("Cannot perform historical upload without Supabase credentials!")
             return False
             
+        self.update_public_ip()
         try:
             extractor = DBFHistoricalExtractor(dbf_dir)
             turnos, horas = extractor.extract_all(self.local_id)

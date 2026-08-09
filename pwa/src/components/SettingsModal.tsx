@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Key, Globe, Check, AlertCircle, Save, Trash2, Percent, Coins } from 'lucide-react';
+import { X, Key, Globe, Check, AlertCircle, Save, Trash2, Percent, Coins, Sparkles } from 'lucide-react';
 import { saveSupabaseCredentials, clearSupabaseCredentials, getSupabase } from '../supabaseClient';
 
 interface SettingsModalProps {
@@ -15,6 +15,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [url, setUrl] = useState(localStorage.getItem('supabase_url') || '');
   const [key, setKey] = useState(localStorage.getItem('supabase_key') || '');
+  const [geminiApiKey, setGeminiApiKey] = useState(localStorage.getItem('app_gemini_api_key') || '');
   const [foodCostPct, setFoodCostPct] = useState(localStorage.getItem('app_food_cost_pct') || '30');
   const [hourlyWage, setHourlyWage] = useState(localStorage.getItem('app_hourly_wage') || '10');
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
@@ -30,9 +31,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     try {
       saveSupabaseCredentials(url, key);
-      // Guardar también los valores de coste en localStorage
+      // Guardar también los valores de coste y API Key de Gemini
       localStorage.setItem('app_food_cost_pct', foodCostPct);
       localStorage.setItem('app_hourly_wage', hourlyWage);
+      localStorage.setItem('app_gemini_api_key', geminiApiKey);
 
       const client = getSupabase();
       if (!client) throw new Error('No se pudo inicializar el cliente Supabase.');
@@ -57,10 +59,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     clearSupabaseCredentials();
     setUrl('');
     setKey('');
+    setGeminiApiKey('');
     setFoodCostPct('30');
     setHourlyWage('10');
     localStorage.setItem('app_food_cost_pct', '30');
     localStorage.setItem('app_hourly_wage', '10');
+    localStorage.removeItem('app_gemini_api_key');
     setStatus({ type: 'success', msg: 'Credenciales eliminadas. Cambiado a Modo Demo.' });
     onSaved();
   };
@@ -126,6 +130,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               value={key}
               onChange={(e) => setKey(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
+            />
+          </div>
+
+          <div className="border-b border-slate-800 pb-3 pt-2 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+              Configuración de Inteligencia Artificial (OCR)
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> Gemini API Key
+            </label>
+            <input
+              type="password"
+              placeholder="AIzaSy..."
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
             />
           </div>
 

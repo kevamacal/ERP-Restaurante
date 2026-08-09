@@ -10,6 +10,8 @@ import { Euro, Receipt, CreditCard, Calendar, RefreshCw, Layers, Clock, UserPlus
 import { ClockInView } from './components/ClockInView';
 import { AdminPinLock } from './components/AdminPinLock';
 import { SettingsModal } from './components/SettingsModal';
+import { analyzeInvoiceWithGemini } from './geminiOCR';
+import { InstallPrompt } from './components/InstallPrompt';
 
 const getWeekRange = (offset: number) => {
   const now = new Date();
@@ -103,6 +105,7 @@ export const App: React.FC = () => {
   // OCR Scan States
   const [isScanningOCR, setIsScanningOCR] = useState<boolean>(false);
   const [ocrScanResult, setOcrScanResult] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Worked hours and labor cost calculations
   const shiftMetrics = React.useMemo(() => {
@@ -644,28 +647,52 @@ export const App: React.FC = () => {
   };
 
   const handleOCRScanInvoice = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleOCRFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset so the same file can be scanned again if needed
+    e.target.value = '';
+
     setIsScanningOCR(true);
     setOcrScanResult(null);
-    
-    // Simulate OCR Scan with a premium delay
-    setTimeout(() => {
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64String = reader.result as string;
+        const apiKey = localStorage.getItem('app_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+        if (!apiKey) {
+          throw new Error('No se ha configurado la API Key de Gemini. Por favor ve a Configuración para añadirla.');
+        }
+
+        const result = await analyzeInvoiceWithGemini(base64String, apiKey);
+        
+        setGastoProveedor(result.proveedor);
+        setGastoConcepto(result.concepto);
+        setGastoImporte(result.importe.toString());
+        setGastoCategoria(result.categoria);
+        setGastoFecha(result.fecha);
+        setOcrScanResult('✓ ¡Factura escaneada correctamente con Inteligencia Artificial! Revisa los campos completados.');
+      } catch (err: any) {
+        console.error('OCR Error:', err);
+        setOcrScanResult(`❌ Error al escanear: ${err.message || err}`);
+      } finally {
+        setIsScanningOCR(false);
+      }
+    };
+
+    reader.onerror = () => {
+      setOcrScanResult('❌ Error al leer el archivo seleccionado.');
       setIsScanningOCR(false);
-      
-      const mockInvoiceData = {
-        proveedor: 'Distribuidora Horeca S.L.',
-        concepto: 'Compra Semanal Frutas y Verduras',
-        importe: '342.50',
-        categoria: 'Materia Prima' as const,
-        fecha: new Date().toISOString().split('T')[0]
-      };
-      
-      setGastoProveedor(mockInvoiceData.proveedor);
-      setGastoConcepto(mockInvoiceData.concepto);
-      setGastoImporte(mockInvoiceData.importe);
-      setGastoCategoria(mockInvoiceData.categoria);
-      setGastoFecha(mockInvoiceData.fecha);
-      setOcrScanResult('✓ ¡Factura escaneada correctamente con Inteligencia Artificial! Revisa los campos completados.');
-    }, 2200);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const computeKPIs = (): SummaryKPI => {
@@ -880,6 +907,13 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 md:pb-12">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleOCRFileChange}
+        className="hidden"
+        accept="image/*,application/pdf"
+      />
       <Header
         onRefresh={fetchData}
         selectedLocal={selectedLocal}
@@ -2294,6 +2328,8 @@ export const App: React.FC = () => {
           fetchData();
         }}
       />
+
+      <InstallPrompt />
     </div>
   );
 };

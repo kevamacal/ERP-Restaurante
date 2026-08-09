@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Key, Globe, Check, AlertCircle, Save, Trash2, Percent, Coins, Sparkles } from 'lucide-react';
-import { saveSupabaseCredentials, clearSupabaseCredentials, getSupabase } from '../supabaseClient';
+import { X, Check, AlertCircle, Save, Percent, Coins } from 'lucide-react';
+import { getSupabase } from '../supabaseClient';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,60 +13,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onSaved
 }) => {
-  const [url, setUrl] = useState(localStorage.getItem('supabase_url') || '');
-  const [key, setKey] = useState(localStorage.getItem('supabase_key') || '');
-  const [geminiApiKey, setGeminiApiKey] = useState(localStorage.getItem('app_gemini_api_key') || '');
   const [foodCostPct, setFoodCostPct] = useState(localStorage.getItem('app_food_cost_pct') || '30');
   const [hourlyWage, setHourlyWage] = useState(localStorage.getItem('app_hourly_wage') || '10');
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
 
   if (!isOpen) return null;
 
-  const handleSave = async (e: any) => {
+  const handleSave = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!url || !key) {
-      setStatus({ type: 'error', msg: 'Por favor completa la URL y la API Key de Supabase.' });
-      return;
-    }
 
     try {
-      saveSupabaseCredentials(url, key);
-      // Guardar también los valores de coste y API Key de Gemini
+      // Save operational cost values in localStorage
       localStorage.setItem('app_food_cost_pct', foodCostPct);
       localStorage.setItem('app_hourly_wage', hourlyWage);
-      localStorage.setItem('app_gemini_api_key', geminiApiKey);
 
+      // Verify connection to Supabase (using variables defined in the environment)
       const client = getSupabase();
-      if (!client) throw new Error('No se pudo inicializar el cliente Supabase.');
+      if (!client) {
+        throw new Error('Faltan configurar las variables de entorno de Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+      }
 
       const { error } = await client.from('locales').select('count', { count: 'exact', head: true });
       if (error && error.code !== 'PGRST116') {
         setStatus({ type: 'error', msg: `Conexión a Supabase con aviso: ${error.message}` });
       } else {
-        setStatus({ type: 'success', msg: '¡Configuración guardada y conexión exitosa!' });
+        setStatus({ type: 'success', msg: '¡Parámetros de costes guardados correctamente!' });
       }
 
       onSaved();
       setTimeout(() => {
         onClose();
+        setStatus({ type: null, msg: '' });
       }, 1200);
     } catch (err: any) {
-      setStatus({ type: 'error', msg: `Error al probar conexión: ${err.message || err}` });
+      setStatus({ type: 'error', msg: `Error al verificar: ${err.message || err}` });
     }
-  };
-
-  const handleClear = () => {
-    clearSupabaseCredentials();
-    setUrl('');
-    setKey('');
-    setGeminiApiKey('');
-    setFoodCostPct('30');
-    setHourlyWage('10');
-    localStorage.setItem('app_food_cost_pct', '30');
-    localStorage.setItem('app_hourly_wage', '10');
-    localStorage.removeItem('app_gemini_api_key');
-    setStatus({ type: 'success', msg: 'Credenciales eliminadas. Cambiado a Modo Demo.' });
-    onSaved();
   };
 
   return (
@@ -81,10 +62,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
 
         <h2 className="text-xl font-bold text-white font-heading mb-1">
-          Configuración del TPV
+          Configuración de Costes
         </h2>
         <p className="text-xs text-slate-400 mb-6">
-          Configura la conexión con tu base de datos Supabase y los parámetros de costes para tus métricas.
+          Ajusta los porcentajes de coste de materia prima y coste de personal para el cálculo de tus métricas financieras.
         </p>
 
         {status.msg && (
@@ -102,57 +83,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <form onSubmit={handleSave} className="space-y-4">
           <div className="border-b border-slate-800 pb-3 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
-              Conexión Base de Datos
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-indigo-400" /> Supabase Project URL
-            </label>
-            <input
-              type="text"
-              placeholder="https://your-project.supabase.co"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Key className="h-3.5 w-3.5 text-indigo-400" /> Supabase Anon / Public Key
-            </label>
-            <input
-              type="password"
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
-            />
-          </div>
-
-          <div className="border-b border-slate-800 pb-3 pt-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-              Configuración de Inteligencia Artificial (OCR)
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> Gemini API Key
-            </label>
-            <input
-              type="password"
-              placeholder="AIzaSy..."
-              value={geminiApiKey}
-              onChange={(e) => setGeminiApiKey(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
-            />
-          </div>
-
-          <div className="border-b border-slate-800 pb-3 pt-2 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
               Parámetros de Costes y Métricas
             </span>
@@ -196,18 +126,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="pt-4 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleClear}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-800 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Usar Modo Demo
-            </button>
-
+          <div className="pt-4 flex items-center justify-end">
             <button
               type="submit"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 transition-all"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/25 flex items-center gap-1.5 transition-all"
             >
               <Save className="h-3.5 w-3.5" /> Guardar Cambios
             </button>

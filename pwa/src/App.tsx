@@ -666,9 +666,9 @@ export const App: React.FC = () => {
     reader.onloadend = async () => {
       try {
         const base64String = reader.result as string;
-        const apiKey = localStorage.getItem('app_gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || '';
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
         if (!apiKey) {
-          throw new Error('No se ha configurado la API Key de Gemini. Por favor ve a Configuración para añadirla.');
+          throw new Error('No se ha configurado la API Key de Gemini en las variables de entorno (VITE_GEMINI_API_KEY).');
         }
 
         const result = await analyzeInvoiceWithGemini(base64String, apiKey);

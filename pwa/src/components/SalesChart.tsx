@@ -22,7 +22,14 @@ export const SalesChart: React.FC<SalesChartProps> = ({
   totalEfectivo,
   totalTarjeta
 }) => {
-  const chartData = ventasHora.map((v) => ({
+  // Sort chronologically starting at 2:00 AM (business day start)
+  const sortedVentasHora = [...ventasHora].sort((a, b) => {
+    const valA = (a.hora - 2 + 24) % 24;
+    const valB = (b.hora - 2 + 24) % 24;
+    return valA - valB;
+  });
+
+  const chartData = sortedVentasHora.map((v) => ({
     hora: `${v.hora}:00`,
     total: v.total_facturado,
     tickets: v.num_tickets

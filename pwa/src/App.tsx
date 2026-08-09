@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { KPICard } from './components/KPICard';
 import { SalesChart } from './components/SalesChart';
 import { HistoricoSection } from './components/HistoricoSection';
+import { PeriodSummariesSection } from './components/PeriodSummariesSection';
 import { getSupabase } from './supabaseClient';
 import type { Local, VentasResumen, VentaHora, SummaryKPI, HistoricoItem, Empleado } from './types';
 import { Euro, Receipt, CreditCard, Calendar, RefreshCw, Layers, Clock, UserPlus, Users, ToggleLeft, ToggleRight, Zap, Coins } from 'lucide-react';
@@ -108,8 +109,11 @@ export const App: React.FC = () => {
             : hourlyWage;
           const shiftCost = validHours * rate;
 
-          // Use entry date in local timezone to match business date
+          // Use entry date in local timezone to match business date (shifts start at 2 AM)
           const d = new Date(entradaTime);
+          if (d.getHours() < 2) {
+            d.setDate(d.getDate() - 1);
+          }
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           
           dailyHours[dateStr] = (dailyHours[dateStr] || 0) + validHours;
@@ -736,6 +740,13 @@ export const App: React.FC = () => {
             />
           </div>
 
+          <PeriodSummariesSection
+            resumenData={resumenData}
+            dailyWorkedHours={dailyWorkedHours}
+            dailyCost={shiftMetrics.dailyCost}
+            foodCostPct={foodCostPct}
+          />
+
           <SalesChart
             ventasHora={ventasHoraData}
             totalEfectivo={kpis.totalEfectivo}
@@ -1125,6 +1136,13 @@ export const App: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              <PeriodSummariesSection
+                resumenData={resumenData}
+                dailyWorkedHours={dailyWorkedHours}
+                dailyCost={shiftMetrics.dailyCost}
+                foodCostPct={foodCostPct}
+              />
             </div>
           )}
 

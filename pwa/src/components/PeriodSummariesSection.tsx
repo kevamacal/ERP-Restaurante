@@ -1,5 +1,5 @@
 import React from 'react';
-import type { VentasResumen } from '../types';
+import type { VentasResumen, Gasto } from '../types';
 import { CalendarDays, CalendarRange, TrendingUp, Receipt, CreditCard, Banknote, ArrowUpRight, Percent } from 'lucide-react';
 
 interface PeriodSummariesSectionProps {
@@ -7,6 +7,7 @@ interface PeriodSummariesSectionProps {
   dailyWorkedHours: Record<string, number>;
   dailyCost: Record<string, number>;
   foodCostPct: number;
+  gastosList: Gasto[];
 }
 
 const NOMBRES_MESES = [
@@ -18,7 +19,8 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
   resumenData,
   dailyWorkedHours,
   dailyCost,
-  foodCostPct
+  foodCostPct,
+  gastosList
 }) => {
   // Parsing helpers to avoid timezone offsets
   const parseLocalDate = (dateStr: string) => {
@@ -93,8 +95,15 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
       laborCost += dailyCost[dateStr] || 0;
     });
 
+    let realGastos = 0;
+    gastosList.forEach((g) => {
+      if (filterFn(g.fecha)) {
+        realGastos += Number(g.importe) || 0;
+      }
+    });
+
     const avgTicket = tickets > 0 ? sales / tickets : 0;
-    const foodCost = sales * (foodCostPct / 100);
+    const foodCost = realGastos > 0 ? realGastos : sales * (foodCostPct / 100);
     const totalCost = foodCost + laborCost;
     const profit = sales - totalCost;
     const laborCostPct = sales > 0 ? (laborCost / sales) * 100 : 0;
@@ -117,7 +126,8 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
       laborCostPct,
       productivity,
       profit,
-      foodCost
+      foodCost,
+      hasRealGastos: realGastos > 0
     };
   };
 
@@ -272,7 +282,9 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
 
               {/* Card Footer: Estimated Profit */}
               <div className="mt-4 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                <span className="text-slate-400 font-medium">Beneficio Neto Est.</span>
+                <span className="text-slate-400 font-medium">
+                  {s.hasRealGastos ? 'Beneficio Neto (Real)' : 'Beneficio Neto Est.'}
+                </span>
                 <span className={`font-bold font-mono text-sm ${s.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {s.profit >= 0 ? '+' : ''}{s.profit.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </span>

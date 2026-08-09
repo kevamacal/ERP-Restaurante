@@ -62,3 +62,14 @@ export interface Fichaje {
   tipo: 'entrada' | 'salida';
   fecha_hora: string;
 }
+
+export interface Gasto {
+  id: string;
+  local_id: string;
+  fecha: string;
+  concepto: string;
+  categoria: 'Materia Prima' | 'Alquiler' | 'Suministros' | 'Otros';
+  importe: number;
+  proveedor?: string;
+  created_at?: string;
+}

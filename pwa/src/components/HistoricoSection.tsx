@@ -111,7 +111,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
       <div className="h-52 sm:h-64 w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={currentData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <XAxis dataKey="periodo" stroke="#64748b" fontSize={11} tickLine={false} />
+            <XAxis dataKey="periodo" stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(val) => val.replace('Semana ', '')} />
             <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
             <Tooltip
               contentStyle={{
@@ -120,7 +120,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
                 borderRadius: '0.75rem',
                 color: '#f8fafc'
               }}
-              formatter={(val: any) => [`${Number(val).toLocaleString('es-ES')} €`, '']}
+              formatter={(val: any, name: any) => [`${Number(val).toLocaleString('es-ES')} €`, name]}
             />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
             <Bar dataKey="ventas" name="Ventas Total (€)" fill="#10b981" radius={[4, 4, 0, 0]} />

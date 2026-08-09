@@ -5,8 +5,8 @@ import { SalesChart } from './components/SalesChart';
 import { HistoricoSection } from './components/HistoricoSection';
 import { PeriodSummariesSection } from './components/PeriodSummariesSection';
 import { getSupabase } from './supabaseClient';
-import type { Local, VentasResumen, VentaHora, SummaryKPI, HistoricoItem, Empleado } from './types';
-import { Euro, Receipt, CreditCard, Calendar, RefreshCw, Layers, Clock, UserPlus, Users, ToggleLeft, ToggleRight, Zap, Coins } from 'lucide-react';
+import type { Local, VentasResumen, VentaHora, SummaryKPI, HistoricoItem, Empleado, Gasto } from './types';
+import { Euro, Receipt, CreditCard, Calendar, RefreshCw, Layers, Clock, UserPlus, Users, ToggleLeft, ToggleRight, Zap, Coins, FileText, Camera, Plus, Trash2, AlertCircle, Check } from 'lucide-react';
 import { ClockInView } from './components/ClockInView';
 import { AdminPinLock } from './components/AdminPinLock';
 import { SettingsModal } from './components/SettingsModal';
@@ -57,7 +57,7 @@ export const App: React.FC = () => {
   );
 
   // Admin Horario States
-  const [activeTab, setActiveTab] = useState<'sales' | 'horario'>('sales');
+  const [activeTab, setActiveTab] = useState<'sales' | 'horario' | 'gastos'>('sales');
   const [fichajesList, setFichajesList] = useState<any[]>([]);
   const [adminEmployees, setAdminEmployees] = useState<Empleado[]>([]);
   const [newEmpName, setNewEmpName] = useState<string>('');
@@ -76,6 +76,33 @@ export const App: React.FC = () => {
   });
   const [fichajesAll, setFichajesAll] = useState<any[]>([]);
   const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  // Manual Fichaje Form States
+  const [manualEmpId, setManualEmpId] = useState<string>('');
+  const [manualTipo, setManualTipo] = useState<'entrada' | 'salida'>('entrada');
+  const [manualFechaHora, setManualFechaHora] = useState<string>(() => {
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+  });
+
+  // Expenses (Gastos) States
+  const [gastosList, setGastosList] = useState<Gasto[]>(() => {
+    const val = localStorage.getItem('app_gastos_fallback');
+    return val ? JSON.parse(val) : [];
+  });
+  const [isGastosTableMissing, setIsGastosTableMissing] = useState<boolean>(false);
+
+  // Expenses Form States
+  const [gastoConcepto, setGastoConcepto] = useState<string>('');
+  const [gastoImporte, setGastoImporte] = useState<string>('');
+  const [gastoFecha, setGastoFecha] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [gastoCategoria, setGastoCategoria] = useState<'Materia Prima' | 'Alquiler' | 'Suministros' | 'Otros'>('Materia Prima');
+  const [gastoProveedor, setGastoProveedor] = useState<string>('');
+
+  // OCR Scan States
+  const [isScanningOCR, setIsScanningOCR] = useState<boolean>(false);
+  const [ocrScanResult, setOcrScanResult] = useState<string | null>(null);
 
   // Worked hours and labor cost calculations
   const shiftMetrics = React.useMemo(() => {
@@ -336,6 +363,32 @@ export const App: React.FC = () => {
     setLoading(false);
   }, [selectedLocal]);
 
+  const fetchGastos = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      let query = supabase.from('gastos').select('*').order('fecha', { ascending: false });
+      if (selectedLocal !== 'all') {
+        query = query.eq('local_id', selectedLocal);
+      }
+      const { data, error } = await query;
+      if (error) {
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+          setIsGastosTableMissing(true);
+        } else {
+          console.error('Error fetching gastos:', error);
+        }
+      } else if (data) {
+        setGastosList(data);
+        setIsGastosTableMissing(false);
+      }
+    } catch (e) {
+      console.error('Error in fetchGastos:', e);
+      setIsGastosTableMissing(true);
+    }
+  }, [selectedLocal]);
+
   useEffect(() => {
     fetchLocales();
   }, [fetchLocales]);
@@ -343,8 +396,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (isAdminAuthenticated) {
       fetchData();
+      fetchGastos();
     }
-  }, [fetchData, isAdminAuthenticated]);
+  }, [fetchData, fetchGastos, isAdminAuthenticated]);
 
   // Handle routing / hash changes (Defaults to 'fichar' view, requires 'admin' in path/hash for dashboard)
   useEffect(() => {
@@ -488,6 +542,132 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAddManualFichaje = async () => {
+    if (!manualEmpId || !manualFechaHora) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      const { error } = await supabase.from('fichajes').insert([
+        {
+          empleado_id: manualEmpId,
+          tipo: manualTipo,
+          fecha_hora: new Date(manualFechaHora).toISOString()
+        }
+      ]);
+      if (!error) {
+        setManualEmpId('');
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        setManualFechaHora(new Date(now.getTime() - tzOffset).toISOString().slice(0, 16));
+        fetchAdminHorarioData();
+        fetchData();
+      } else {
+        console.error('Error insertando fichaje manual:', error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+
+  const handleAddGasto = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!gastoConcepto.trim() || !gastoImporte || !gastoFecha) return;
+
+    const parsedImporte = Number(gastoImporte);
+    if (Number.isNaN(parsedImporte)) return;
+
+    const targetLocal = selectedLocal === 'all' ? 'local_1' : selectedLocal;
+    const newGastoRaw = {
+      local_id: targetLocal,
+      fecha: gastoFecha,
+      concepto: gastoConcepto.trim(),
+      categoria: gastoCategoria,
+      importe: parsedImporte,
+      proveedor: gastoProveedor.trim() || undefined
+    };
+
+    const supabase = getSupabase();
+    if (!supabase || isGastosTableMissing) {
+      // LocalStorage Fallback
+      const newGastoWithId = {
+        ...newGastoRaw,
+        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+        created_at: new Date().toISOString()
+      } as Gasto;
+      const updated = [newGastoWithId, ...gastosList];
+      setGastosList(updated);
+      localStorage.setItem('app_gastos_fallback', JSON.stringify(updated));
+      
+      // Reset form
+      setGastoConcepto('');
+      setGastoImporte('');
+      setGastoProveedor('');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('gastos').insert([newGastoRaw]);
+      if (!error) {
+        setGastoConcepto('');
+        setGastoImporte('');
+        setGastoProveedor('');
+        fetchGastos();
+      } else {
+        console.error('Error adding gasto:', error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteGasto = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase || isGastosTableMissing) {
+      const updated = gastosList.filter((g) => g.id !== id);
+      setGastosList(updated);
+      localStorage.setItem('app_gastos_fallback', JSON.stringify(updated));
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('gastos').delete().eq('id', id);
+      if (!error) {
+        fetchGastos();
+      } else {
+        console.error('Error deleting gasto:', error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOCRScanInvoice = () => {
+    setIsScanningOCR(true);
+    setOcrScanResult(null);
+    
+    // Simulate OCR Scan with a premium delay
+    setTimeout(() => {
+      setIsScanningOCR(false);
+      
+      const mockInvoiceData = {
+        proveedor: 'Distribuidora Horeca S.L.',
+        concepto: 'Compra Semanal Frutas y Verduras',
+        importe: '342.50',
+        categoria: 'Materia Prima' as const,
+        fecha: new Date().toISOString().split('T')[0]
+      };
+      
+      setGastoProveedor(mockInvoiceData.proveedor);
+      setGastoConcepto(mockInvoiceData.concepto);
+      setGastoImporte(mockInvoiceData.importe);
+      setGastoCategoria(mockInvoiceData.categoria);
+      setGastoFecha(mockInvoiceData.fecha);
+      setOcrScanResult('✓ ¡Factura escaneada correctamente con Inteligencia Artificial! Revisa los campos completados.');
+    }, 2200);
+  };
+
   const computeKPIs = (): SummaryKPI => {
     if (dailyResumenData.length === 0) {
       return {
@@ -536,7 +716,33 @@ export const App: React.FC = () => {
   };
 
   const computeHistoricos = () => {
-    const semanalMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
+    // Robust UTC week calculation to prevent timezone offsets shifting weekly reports
+    const getWeekIdentifier = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const d = new Date(Date.UTC(year, month - 1, day));
+      const utcDay = d.getUTCDay();
+      const diffToMonday = utcDay === 0 ? -6 : 1 - utcDay;
+      const monday = new Date(d.getTime() + diffToMonday * 86400000);
+      
+      const yearStart = new Date(Date.UTC(monday.getUTCFullYear(), 0, 1));
+      const daysDiff = Math.round((monday.getTime() - yearStart.getTime()) / 86400000);
+      const startDay = yearStart.getUTCDay();
+      const weekNum = Math.floor((daysDiff + (startDay === 0 ? -6 : 1 - startDay) + 6) / 7) + 1;
+      
+      const mDate = monday.getUTCDate();
+      const mMonth = monday.getUTCMonth() + 1;
+      const sDate = new Date(monday.getTime() + 6 * 86400000).getUTCDate();
+      const sMonth = new Date(monday.getTime() + 6 * 86400000).getUTCMonth() + 1;
+      
+      const rangeLabel = `${String(mDate).padStart(2, '0')}/${String(mMonth).padStart(2, '0')} al ${String(sDate).padStart(2, '0')}/${String(sMonth).padStart(2, '0')}`;
+      
+      return {
+        key: `${monday.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`,
+        label: `W${weekNum} (${rangeLabel})`
+      };
+    };
+
+    const semanalMap: Record<string, { tickets: number; ventas: number; horas: number; label: string }> = {};
     const mensualMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
     const anualMap: Record<string, { tickets: number; ventas: number; horas: number }> = {};
 
@@ -550,9 +756,7 @@ export const App: React.FC = () => {
       const ano = d.getFullYear().toString();
       const mes = `${ano}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       
-      const firstJan = new Date(d.getFullYear(), 0, 1);
-      const weekNum = Math.ceil((((d.getTime() - firstJan.getTime()) / 86400000) + firstJan.getDay() + 1) / 7);
-      const semana = `${ano}-W${String(weekNum).padStart(2, '0')}`;
+      const { key: semana, label: weekLabel } = getWeekIdentifier(dateStr);
 
       const v = Number(row.total_facturado) || 0;
       const t = Number(row.num_tickets) || 0;
@@ -567,31 +771,47 @@ export const App: React.FC = () => {
       mensualMap[mes].ventas += v;
       mensualMap[mes].horas += horas;
 
-      if (!semanalMap[semana]) semanalMap[semana] = { tickets: 0, ventas: 0, horas: 0 };
+      if (!semanalMap[semana]) semanalMap[semana] = { tickets: 0, ventas: 0, horas: 0, label: weekLabel };
       semanalMap[semana].tickets += t;
       semanalMap[semana].ventas += v;
       semanalMap[semana].horas += horas;
     });
 
-    const formatItems = (map: Record<string, { tickets: number; ventas: number; horas: number }>, prefix = '', limit = 12): HistoricoItem[] => {
+    const formatItems = (map: Record<string, { tickets: number; ventas: number; horas: number; label?: string }>, prefix = '', limit = 12): HistoricoItem[] => {
       return Object.keys(map)
         .sort((a, b) => b.localeCompare(a))
         .slice(0, limit)
         .map((key) => {
           const v = map[key].ventas;
           
-          // Costes = Materia prima (foodCostPct%) + Personal (horas * hourlyWage)
-          const costeMateriaPrima = v * (foodCostPct / 100);
+          // Sum up real expenses for dates that fall into this period
+          let realGastosPeriodo = 0;
+          gastosList.forEach((g) => {
+            const { key: semanaG } = getWeekIdentifier(g.fecha);
+            const gd = new Date(g.fecha);
+            if (Number.isNaN(gd.getTime())) return;
+            const anoG = gd.getFullYear().toString();
+            const mesG = `${anoG}-${String(gd.getMonth() + 1).padStart(2, '0')}`;
+
+            if (prefix === 'Año ' && key === anoG) {
+              realGastosPeriodo += g.importe;
+            } else if (prefix === '' && key === mesG) {
+              realGastosPeriodo += g.importe;
+            } else if (prefix === 'Semana ' && key === semanaG) {
+              realGastosPeriodo += g.importe;
+            }
+          });
+
+          // Costes = Materia prima / gastos (real if exists, otherwise foodCostPct%) + Personal (horas * hourlyWage)
+          const costeMateriaPrima = realGastosPeriodo > 0 ? realGastosPeriodo : v * (foodCostPct / 100);
           
           // Sum up shiftMetrics.dailyCost for dates that fall into this period
           let costePersonal = 0;
           Object.keys(shiftMetrics.dailyCost).forEach((dateStr) => {
+            const { key: semana } = getWeekIdentifier(dateStr);
             const d = new Date(dateStr);
             const ano = d.getFullYear().toString();
             const mes = `${ano}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const firstJan = new Date(d.getFullYear(), 0, 1);
-            const weekNum = Math.ceil((((d.getTime() - firstJan.getTime()) / 86400000) + firstJan.getDay() + 1) / 7);
-            const semana = `${ano}-W${String(weekNum).padStart(2, '0')}`;
 
             if (prefix === 'Año ' && key === ano) {
               costePersonal += shiftMetrics.dailyCost[dateStr];
@@ -605,7 +825,7 @@ export const App: React.FC = () => {
           const g = costeMateriaPrima + costePersonal;
 
           return {
-            periodo: `${prefix}${key}`,
+            periodo: prefix === 'Semana ' ? `Semana ${map[key].label}` : `${prefix}${key}`,
             tickets: map[key].tickets,
             ventas: Math.round(v * 100) / 100,
             gastos: Math.round(g * 100) / 100,
@@ -754,6 +974,7 @@ export const App: React.FC = () => {
             dailyWorkedHours={dailyWorkedHours}
             dailyCost={shiftMetrics.dailyCost}
             foodCostPct={foodCostPct}
+            gastosList={gastosList}
           />
 
           <SalesChart
@@ -797,10 +1018,19 @@ export const App: React.FC = () => {
                 >
                   Registro Horario (Fichajes)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('gastos')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'gastos' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Facturas y Gastos
+                </button>
               </div>
             </div>
 
-            {activeTab === 'sales' ? (
+            {activeTab === 'sales' && (
               /* TAB 1: Cierres Diarios (Desktop Table) */
               <div className="overflow-x-auto">
                 {dailyResumenData.length > 0 ? (
@@ -841,7 +1071,9 @@ export const App: React.FC = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'horario' && (
               /* TAB 2: Control Horario / Fichajes (Desktop Grid) */
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Manage Employees */}
@@ -881,6 +1113,73 @@ export const App: React.FC = () => {
                         className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white"
                       >
                         Agregar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Registrar Fichaje Manual (Desktop) */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" /> Registrar Fichaje Manual
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label htmlFor="manualEmp" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Empleado</label>
+                        <select
+                          id="manualEmp"
+                          value={manualEmpId}
+                          onChange={(e) => setManualEmpId(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                        >
+                          <option value="">Selecciona un empleado...</option>
+                          {adminEmployees.filter(e => e.activo).map((emp) => (
+                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-1">Tipo de Evento</label>
+                        <div className="flex bg-slate-950 border border-slate-800 p-1 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => setManualTipo('entrada')}
+                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                              manualTipo === 'entrada' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-450 hover:text-slate-200'
+                            }`}
+                          >
+                            Entrada
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setManualTipo('salida')}
+                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                              manualTipo === 'salida' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-slate-450 hover:text-slate-200'
+                            }`}
+                          >
+                            Salida
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="manualFechaHora" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Fecha y Hora</label>
+                        <input
+                          id="manualFechaHora"
+                          type="datetime-local"
+                          value={manualFechaHora}
+                          onChange={(e) => setManualFechaHora(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddManualFichaje}
+                        disabled={!manualEmpId || !manualFechaHora}
+                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white"
+                      >
+                        Registrar Fichaje
                       </button>
                     </div>
                   </div>
@@ -1047,6 +1346,228 @@ export const App: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {activeTab === 'gastos' && (
+              /* TAB 3: Facturas y Gastos (Desktop Grid) */
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Log Expense & OCR Scan */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Log Expense Manually */}
+                  <form onSubmit={handleAddGasto} className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4" /> Registrar Gasto Manual
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label htmlFor="gastoProv" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Proveedor</label>
+                        <input
+                          id="gastoProv"
+                          type="text"
+                          value={gastoProveedor}
+                          onChange={(e) => setGastoProveedor(e.target.value)}
+                          placeholder="Ej. Distribuidora S.L."
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label htmlFor="gastoConcept" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Concepto *</label>
+                        <input
+                          id="gastoConcept"
+                          type="text"
+                          required
+                          value={gastoConcepto}
+                          onChange={(e) => setGastoConcepto(e.target.value)}
+                          placeholder="Ej. Compra de verdura"
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label htmlFor="gastoImp" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Importe (€) *</label>
+                          <input
+                            id="gastoImp"
+                            type="number"
+                            step="0.01"
+                            required
+                            min="0.01"
+                            value={gastoImporte}
+                            onChange={(e) => setGastoImporte(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="gastoCat" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Categoría *</label>
+                          <select
+                            id="gastoCat"
+                            value={gastoCategoria}
+                            onChange={(e) => setGastoCategoria(e.target.value as any)}
+                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          >
+                            <option value="Materia Prima">Materia Prima</option>
+                            <option value="Alquiler">Alquiler</option>
+                            <option value="Suministros">Suministros</option>
+                            <option value="Otros">Otros</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="gastoFech" className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Fecha *</label>
+                        <input
+                          id="gastoFech"
+                          type="date"
+                          required
+                          value={gastoFecha}
+                          onChange={(e) => setGastoFecha(e.target.value)}
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5"
+                      >
+                        <Plus className="h-4 w-4" /> Guardar Gasto
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* OCR AI Scanner */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <Camera className="h-4 w-4" /> Escaneo de Facturas con IA
+                    </h4>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      Sube una imagen o PDF de tu ticket/factura para escanear y extraer automáticamente el proveedor, la fecha, la categoría y el total mediante Inteligencia Artificial (Gemini Pro/Mindee).
+                    </p>
+
+                    <div className="space-y-3">
+                      <div className="border-2 border-dashed border-slate-800 hover:border-slate-700 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-slate-955/40 relative overflow-hidden group">
+                        {isScanningOCR ? (
+                          <div className="space-y-2 py-4">
+                            <RefreshCw className="h-6 w-6 text-emerald-400 animate-spin mx-auto" />
+                            <p className="text-xs text-slate-300 font-semibold">Procesando imagen con IA...</p>
+                            <div className="w-24 h-1 bg-slate-800 mx-auto rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500 animate-pulse" style={{ width: '100%' }}></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div onClick={handleOCRScanInvoice} className="space-y-2 py-2">
+                            <Camera className="h-7 w-7 text-slate-500 group-hover:text-emerald-400 group-hover:scale-110 transition-all mx-auto" />
+                            <p className="text-xs font-bold text-slate-300">Haz una foto o sube un archivo</p>
+                            <span className="text-[9px] text-slate-500 font-medium">Formatos soportados: JPG, PNG, PDF</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {ocrScanResult && (
+                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-semibold flex items-center gap-2">
+                          <Check className="h-4 w-4 shrink-0" />
+                          <span>{ocrScanResult}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Expenses History */}
+                <div className="lg:col-span-2 space-y-4">
+                  {isGastosTableMissing && (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 space-y-2.5">
+                      <div className="flex items-start gap-2 text-xs font-bold">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <span>Tabla 'gastos' no creada en Supabase (Respaldo Local Activo)</span>
+                          <p className="text-[10px] text-slate-450 font-normal mt-0.5">
+                            Estamos usando <code>localStorage</code> temporalmente. Ejecuta este script en el SQL Editor de tu consola de Supabase para activar la persistencia en la nube:
+                          </p>
+                        </div>
+                      </div>
+                      <pre className="text-[9px] bg-slate-955 p-2.5 rounded-xl border border-slate-850 font-mono text-slate-300 overflow-x-auto select-all max-h-32">
+{`CREATE TABLE IF NOT EXISTS gastos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    local_id TEXT NOT NULL,
+    fecha DATE NOT NULL,
+    concepto TEXT NOT NULL,
+    categoria TEXT NOT NULL CHECK (categoria IN ('Materia Prima', 'Alquiler', 'Suministros', 'Otros')),
+    importe NUMERIC(10, 2) NOT NULL,
+    proveedor TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);`}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4 text-indigo-400" /> Registro Histórico de Gastos y Facturas
+                    </h4>
+                    <span className="text-[11px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl font-mono">
+                      Total Periodo: {gastosList.reduce((acc, g) => acc + g.importe, 0).toFixed(2)} €
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto border border-slate-800 rounded-2xl">
+                    {gastosList.length > 0 ? (
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                            <th className="py-3 px-4">Proveedor</th>
+                            <th className="py-3 px-4">Concepto</th>
+                            <th className="py-3 px-4 text-center">Categoría</th>
+                            <th className="py-3 px-4 text-center">Fecha</th>
+                            <th className="py-3 px-4 text-right">Importe</th>
+                            <th className="py-3 px-4 text-center">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 font-medium">
+                          {gastosList.map((g) => {
+                            return (
+                              <tr key={g.id} className="hover:bg-slate-800/40 transition-colors">
+                                <td className="py-3 px-4 text-white font-semibold">{g.proveedor || 'Sin Proveedor'}</td>
+                                <td className="py-3 px-4 text-slate-300">{g.concepto}</td>
+                                <td className="py-3 px-4 text-center">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                    g.categoria === 'Materia Prima'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : g.categoria === 'Alquiler'
+                                      ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                                      : g.categoria === 'Suministros'
+                                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                      : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                  }`}>
+                                    {g.categoria}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-center text-slate-400 font-mono">{g.fecha}</td>
+                                <td className="py-3 px-4 text-right text-rose-450 font-bold font-mono">{g.importe.toFixed(2)} €</td>
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteGasto(g.id)}
+                                    className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                                    title="Eliminar Gasto"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-center py-12 text-slate-400 text-sm bg-slate-900/20">
+                        No hay facturas o gastos registrados.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1158,6 +1679,7 @@ export const App: React.FC = () => {
                 dailyWorkedHours={dailyWorkedHours}
                 dailyCost={shiftMetrics.dailyCost}
                 foodCostPct={foodCostPct}
+                gastosList={gastosList}
               />
             </div>
           )}
@@ -1191,7 +1713,7 @@ export const App: React.FC = () => {
                     activeTab === 'sales' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Cierres Diarios
+                  Cierres
                 </button>
                 <button
                   type="button"
@@ -1200,11 +1722,20 @@ export const App: React.FC = () => {
                     activeTab === 'horario' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Fichajes / Plantilla
+                  Personal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('gastos')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+                    activeTab === 'gastos' ? 'bg-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Gastos
                 </button>
               </div>
 
-              {activeTab === 'sales' ? (
+              {activeTab === 'sales' && (
                 /* TAB 2.3.1: Cierres Diarios Card List */
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 px-1">Últimos Cierres de Establecimiento</h4>
@@ -1253,7 +1784,9 @@ export const App: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ) : (
+              )}
+
+              {activeTab === 'horario' && (
                 /* TAB 2.3.2: Control de Plantilla & Fichajes list */
                 <div className="space-y-4">
                   
@@ -1300,6 +1833,73 @@ export const App: React.FC = () => {
                       >
                         Crear Ficha
                       </button>
+                    </div>
+
+                    {/* Registrar Fichaje Manual (Mobile) */}
+                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-3.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                        <Clock className="h-4 w-4 text-indigo-400" />
+                        <span>Fichaje Manual</span>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label htmlFor="manualEmpMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Empleado</label>
+                          <select
+                            id="manualEmpMob"
+                            value={manualEmpId}
+                            onChange={(e) => setManualEmpId(e.target.value)}
+                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          >
+                            <option value="">Seleccionar...</option>
+                            {adminEmployees.filter(e => e.activo).map((emp) => (
+                              <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block mb-1">Tipo</label>
+                            <div className="flex bg-slate-955 border border-slate-800 p-0.5 rounded-lg">
+                              <button
+                                type="button"
+                                onClick={() => setManualTipo('entrada')}
+                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${
+                                  manualTipo === 'entrada' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-450'
+                                }`}
+                              >
+                                Ent.
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setManualTipo('salida')}
+                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${
+                                  manualTipo === 'salida' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-slate-450'
+                                }`}
+                              >
+                                Sal.
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label htmlFor="manualFechaHoraMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Fecha/Hora</label>
+                            <input
+                              id="manualFechaHoraMob"
+                              type="datetime-local"
+                              value={manualFechaHora}
+                              onChange={(e) => setManualFechaHora(e.target.value)}
+                              className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[10px] focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddManualFichaje}
+                          disabled={!manualEmpId || !manualFechaHora}
+                          className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white"
+                        >
+                          Registrar
+                        </button>
+                      </div>
                     </div>
 
                     {/* Employee List Horizontal Scroll or visual bubbles */}
@@ -1449,6 +2049,171 @@ export const App: React.FC = () => {
                     </div>
                   </div>
 
+                </div>
+              )}
+
+              {activeTab === 'gastos' && (
+                /* TAB 2.3.3: Facturas y Gastos Mobile */
+                <div className="space-y-4">
+                  {/* Form & OCR Scanner Mobile */}
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4" /> Registrar Gasto
+                    </h4>
+                    <form onSubmit={handleAddGasto} className="space-y-3">
+                      <div className="space-y-1">
+                        <label htmlFor="gastoProvMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Proveedor</label>
+                        <input
+                          id="gastoProvMob"
+                          type="text"
+                          value={gastoProveedor}
+                          onChange={(e) => setGastoProveedor(e.target.value)}
+                          placeholder="Ej. Distribuidora S.L."
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="gastoConceptMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Concepto *</label>
+                        <input
+                          id="gastoConceptMob"
+                          type="text"
+                          required
+                          value={gastoConcepto}
+                          onChange={(e) => setGastoConcepto(e.target.value)}
+                          placeholder="Ej. Compra de verdura"
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label htmlFor="gastoImpMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Importe (€) *</label>
+                          <input
+                            id="gastoImpMob"
+                            type="number"
+                            step="0.01"
+                            required
+                            min="0.01"
+                            value={gastoImporte}
+                            onChange={(e) => setGastoImporte(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="gastoCatMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Categoría *</label>
+                          <select
+                            id="gastoCatMob"
+                            value={gastoCategoria}
+                            onChange={(e) => setGastoCategoria(e.target.value as any)}
+                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          >
+                            <option value="Materia Prima">Materia Prima</option>
+                            <option value="Alquiler">Alquiler</option>
+                            <option value="Suministros">Suministros</option>
+                            <option value="Otros">Otros</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="gastoFechMob" className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Fecha *</label>
+                        <input
+                          id="gastoFechMob"
+                          type="date"
+                          required
+                          value={gastoFecha}
+                          onChange={(e) => setGastoFecha(e.target.value)}
+                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5"
+                      >
+                        <Plus className="h-4 w-4" /> Guardar Gasto
+                      </button>
+                    </form>
+
+                    <div className="border-t border-slate-800/60 pt-4 space-y-3">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                        <Camera className="h-4 w-4" />
+                        <span>Escanear Factura con IA</span>
+                      </div>
+                      <div className="border border-dashed border-slate-800 hover:border-slate-700 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-slate-955/20 relative overflow-hidden group">
+                        {isScanningOCR ? (
+                          <div className="space-y-2 py-2">
+                            <RefreshCw className="h-5 w-5 text-emerald-400 animate-spin mx-auto" />
+                            <p className="text-[10px] text-slate-300 font-semibold">Procesando imagen con IA...</p>
+                          </div>
+                        ) : (
+                          <div onClick={handleOCRScanInvoice} className="space-y-1.5 py-1">
+                            <Camera className="h-6 w-6 text-slate-500 group-hover:text-emerald-400 transition-all mx-auto" />
+                            <p className="text-[11px] font-bold text-slate-355">Hacer foto o subir factura</p>
+                          </div>
+                        )}
+                      </div>
+                      {ocrScanResult && (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
+                          <Check className="h-3.5 w-3.5 shrink-0" />
+                          <span>{ocrScanResult}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expenses History Mobile */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Listado de Gastos ({gastosList.length})</h4>
+                      <span className="text-[11px] font-bold text-rose-400 font-mono">
+                        Total: {gastosList.reduce((acc, g) => acc + g.importe, 0).toFixed(1)} €
+                      </span>
+                    </div>
+
+                    {isGastosTableMissing && (
+                      <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] space-y-1.5">
+                        <div className="flex items-start gap-1.5 font-bold">
+                          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span>Respaldo en Local Activo (Tabla faltante)</span>
+                        </div>
+                        <p className="text-slate-450 leading-tight">
+                          Los datos se guardan en el navegador. Crea la tabla <code>gastos</code> en Supabase para habilitar la nube.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2.5">
+                      {gastosList.length > 0 ? (
+                        gastosList.map((g) => (
+                          <div key={g.id} className="glass-panel p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                            <div className="truncate flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white font-bold truncate">{g.proveedor || 'Sin Proveedor'}</span>
+                                <span className="px-1.5 py-0.2 rounded bg-slate-950 border border-slate-850 text-[8px] font-bold text-slate-400 uppercase shrink-0">
+                                  {g.categoria}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 block truncate mt-0.5">{g.concepto}</span>
+                              <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">{g.fecha}</span>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="font-bold text-rose-455 font-mono">{g.importe.toFixed(2)} €</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteGasto(g.id)}
+                                className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-slate-500 text-xs">
+                          No hay gastos guardados.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

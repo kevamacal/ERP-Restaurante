@@ -456,10 +456,19 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleUpdateEmployeeRate = async (id: string, rate: number) => {
-    // Optimistic update
+  const handleLocalRateChange = (id: string, valStr: string) => {
+    const parsed = valStr === '' ? undefined : Number(valStr);
     setAdminEmployees((prev) =>
-      prev.map((emp) => (emp.id === id ? { ...emp, coste_hora: rate } : emp))
+      prev.map((emp) => (emp.id === id ? { ...emp, coste_hora: parsed } : emp))
+    );
+  };
+
+  const handleSaveEmployeeRate = async (id: string, rate: number | undefined | null) => {
+    const finalRate = rate === undefined || rate === null || Number.isNaN(rate) ? hourlyWage : rate;
+    
+    // Normalize state to final saved rate
+    setAdminEmployees((prev) =>
+      prev.map((emp) => (emp.id === id ? { ...emp, coste_hora: finalRate } : emp))
     );
 
     const supabase = getSupabase();
@@ -468,7 +477,7 @@ export const App: React.FC = () => {
     try {
       const { error } = await supabase
         .from('empleados')
-        .update({ coste_hora: rate })
+        .update({ coste_hora: finalRate })
         .eq('id', id);
       
       if (error) {
@@ -893,7 +902,14 @@ export const App: React.FC = () => {
                                   step="0.5"
                                   value={emp.coste_hora ?? ''}
                                   placeholder={hourlyWage.toString()}
-                                  onChange={(e) => handleUpdateEmployeeRate(emp.id, e.target.value === '' ? hourlyWage : Number(e.target.value))}
+                                  onChange={(e) => handleLocalRateChange(emp.id, e.target.value)}
+                                  onBlur={(e) => handleSaveEmployeeRate(emp.id, e.target.value === '' ? undefined : Number(e.target.value))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleSaveEmployeeRate(emp.id, e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value));
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
                                   className="w-12 bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-0.5 text-[11px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
                                 />
                                 <span className="text-[10px] text-slate-500 font-semibold">€/h</span>
@@ -1301,7 +1317,14 @@ export const App: React.FC = () => {
                                   step="0.5"
                                   value={emp.coste_hora ?? ''}
                                   placeholder={hourlyWage.toString()}
-                                  onChange={(e) => handleUpdateEmployeeRate(emp.id, e.target.value === '' ? hourlyWage : Number(e.target.value))}
+                                  onChange={(e) => handleLocalRateChange(emp.id, e.target.value)}
+                                  onBlur={(e) => handleSaveEmployeeRate(emp.id, e.target.value === '' ? undefined : Number(e.target.value))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleSaveEmployeeRate(emp.id, e.currentTarget.value === '' ? undefined : Number(e.currentTarget.value));
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
                                   className="w-11 bg-slate-950 border border-slate-800 rounded-lg px-1 py-0.5 text-[10px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
                                 />
                                 <span className="text-[9px] text-slate-500 font-semibold">€/h</span>

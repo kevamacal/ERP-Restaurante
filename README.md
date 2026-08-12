@@ -15,18 +15,18 @@ El sistema implementa una arquitectura híbrida híbrida local-nube para garanti
 
 ```mermaid
 graph TD
-    subgraph Entorno Local (Restaurante)
+    subgraph "Entorno Local (Restaurante)"
         TPV[TPV Físico Numier] -- Genera --> DBF[(Archivos .DBF)]
         Agent[Agente Sync - Python] -- Lee eficientemente --> DBF
         Agent -- Detecta --> IP[IP Pública Local]
     end
 
-    subgraph Nube (Backend & DB)
+    subgraph "Nube (Backend & DB)"
         Supa[(Supabase / PostgreSQL)]
         RPC[Función RPC - Verify PIN]
     end
 
-    subgraph Clientes & Administración (Frontend)
+    subgraph "Clientes & Administración (Frontend)"
         PWA[Panel Admin PWA - React 19] -- Consume / Ficha --> Supa
         PWA -- Verifica PIN --> RPC
         Web[Carta Digital - TanStack Start] -- Consume --> Supa

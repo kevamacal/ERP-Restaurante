@@ -40,6 +40,7 @@ Si algún campo no es legible o no se encuentra:
 - Para el concepto, usa un resumen de los productos visibles (ej. "Compra de verduras y bebidas").
 - Para la categoría, clasifícalo en uno de los valores permitidos.`;
 
+  // Modelo económico y rápido: gemini-2.5-flash
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const requestBody = {
@@ -102,7 +103,7 @@ Si algún campo no es legible o no se encuentra:
   }
 
   const data = await response.json();
-  
+
   // Extract text from the candidate response content
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {

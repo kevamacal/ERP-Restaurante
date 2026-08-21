@@ -307,7 +307,7 @@ class DBFMetricsExtractor:
             
             # Filter for closed and pending tickets
             cab_estado = record.get('CAB_ESTADO')
-            if cab_estado in ('C', 'c', 'N'):
+            if cab_estado in ('C', 'c', 'P'):
                 # Parse hour to compute business date
                 hora_raw = record.get('CAB_HORA')
                 hora_num = 0

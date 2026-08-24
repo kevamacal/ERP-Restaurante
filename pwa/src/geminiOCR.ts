@@ -40,8 +40,7 @@ Si algún campo no es legible o no se encuentra:
 - Para el concepto, usa un resumen de los productos visibles (ej. "Compra de verduras y bebidas").
 - Para la categoría, clasifícalo en uno de los valores permitidos.`;
 
-  // Modelo económico y rápido: gemini-3.5-flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
   const requestBody = {
     contents: [
@@ -123,59 +122,3 @@ Si algún campo no es legible o no se encuentra:
     );
   }
 }
-
-/**
- * Compresses an image file if it exceeds the max width/height, returning a base64 string.
- * Keeps the aspect ratio. If it's not an image (e.g. PDF), it reads it directly as base64.
- */
-export function compressImageIfNeeded(file: File, maxWidth = 1000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      // PDF or other files are read directly
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Error leyendo el archivo."));
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth || height > maxWidth) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxWidth) / height);
-            height = maxWidth;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(event.target?.result as string); // Fallback to original base64
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        // Export to JPEG with 0.8 quality to reduce token count and file size drastically
-        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.8);
-        resolve(compressedBase64);
-      };
-      img.onerror = () => reject(new Error("Error al cargar la imagen para compresión."));
-      img.src = event.target?.result as string;
-    };
-    reader.onerror = () => reject(new Error("Error leyendo el archivo de imagen."));
-    reader.readAsDataURL(file);
-  });
-}
-

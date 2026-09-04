@@ -22,7 +22,6 @@ export const SalesChart: React.FC<SalesChartProps> = ({
   totalEfectivo,
   totalTarjeta
 }) => {
-  // Sort chronologically starting at 2:00 AM (business day start)
   const sortedVentasHora = [...ventasHora].sort((a, b) => {
     const valA = (a.hora - 2 + 24) % 24;
     const valB = (b.hora - 2 + 24) % 24;
@@ -39,7 +38,6 @@ export const SalesChart: React.FC<SalesChartProps> = ({
   const pctEfectivo = totalCobros > 0 ? ((totalEfectivo / totalCobros) * 100).toFixed(1) : '0';
   const pctTarjeta = totalCobros > 0 ? ((totalTarjeta / totalCobros) * 100).toFixed(1) : '0';
 
-  // Calculate Turn Sales
   const turnTotals = {
     desayuno: 0,
     comida: 0,
@@ -69,16 +67,16 @@ export const SalesChart: React.FC<SalesChartProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Gráfica de Ventas por Hora (2 cols en Desktop) */}
-      <div className="lg:col-span-2 glass-card p-5 rounded-2xl border border-slate-800">
+      {/* Gráfica de Ventas por Hora */}
+      <div className="lg:col-span-2 glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-indigo-400" />
-            <h3 className="text-base font-bold text-white font-heading">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
               Distribución de Ventas por Hora
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-medium bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+          <span className="text-xs text-slate-600 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
             Intradía
           </span>
         </div>
@@ -93,7 +91,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                 <XAxis dataKey="hora" stroke="#64748b" fontSize={12} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
                 <Tooltip
@@ -125,13 +123,13 @@ export const SalesChart: React.FC<SalesChartProps> = ({
         </div>
       </div>
 
-      {/* Desglose por Medio de Pago y Turnos (1 col en Desktop) */}
-      <div className="glass-card p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
+      {/* Desglose por Medio de Pago y Turnos */}
+      <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
         <div>
           {/* Formas de Pago */}
           <div className="flex items-center gap-2 mb-3">
             <CreditCard className="h-4.5 w-4.5 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white font-heading">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
               Formas de Pago
             </h3>
           </div>
@@ -139,12 +137,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Tarjeta Progress Bar */}
           <div className="mb-4">
             <div className="flex justify-between text-[11px] font-semibold mb-1">
-              <span className="text-violet-400 flex items-center gap-1">
+              <span className="text-violet-600 dark:text-violet-400 flex items-center gap-1 font-bold">
                 <CreditCard className="h-3 w-3" /> Tarjeta ({pctTarjeta}%)
               </span>
-              <span className="text-white font-mono">{totalTarjeta.toFixed(2)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{totalTarjeta.toFixed(2)} €</span>
             </div>
-            <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/80">
+            <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/80">
               <div
                 className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full transition-all duration-500"
                 style={{ width: `${pctTarjeta}%` }}
@@ -155,12 +153,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Efectivo Progress Bar */}
           <div className="mb-4">
             <div className="flex justify-between text-[11px] font-semibold mb-1">
-              <span className="text-amber-400 flex items-center gap-1">
+              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 font-bold">
                 <Banknote className="h-3 w-3" /> Efectivo ({pctEfectivo}%)
               </span>
-              <span className="text-white font-mono">{totalEfectivo.toFixed(2)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{totalEfectivo.toFixed(2)} €</span>
             </div>
-            <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/80">
+            <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/80">
               <div
                 className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all duration-500"
                 style={{ width: `${pctEfectivo}%` }}
@@ -168,12 +166,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
             </div>
           </div>
 
-          <div className="border-t border-slate-800/80 my-4" />
+          <div className="border-t border-slate-200 dark:border-slate-800/80 my-4" />
 
           {/* Ventas por Turnos */}
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4.5 w-4.5 text-indigo-400" />
-            <h3 className="text-sm font-bold text-white font-heading">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white font-heading">
               Ventas por Turno
             </h3>
           </div>
@@ -181,12 +179,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Desayuno */}
           <div className="mb-3">
             <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-amber-300 flex items-center gap-1">
+              <span className="text-amber-600 dark:text-amber-300 flex items-center gap-1 font-bold">
                 <Coffee className="h-3 w-3" /> Desayuno ({getPct(turnTotals.desayuno)}%)
               </span>
-              <span className="text-white font-mono">{turnTotals.desayuno.toFixed(1)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{turnTotals.desayuno.toFixed(1)} €</span>
             </div>
-            <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/60">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/60">
               <div
                 className="h-full bg-amber-400 rounded-full transition-all duration-500"
                 style={{ width: `${getPct(turnTotals.desayuno)}%` }}
@@ -197,12 +195,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Almuerzo */}
           <div className="mb-3">
             <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-emerald-400 flex items-center gap-1">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
                 <Utensils className="h-3 w-3" /> Almuerzo ({getPct(turnTotals.comida)}%)
               </span>
-              <span className="text-white font-mono">{turnTotals.comida.toFixed(1)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{turnTotals.comida.toFixed(1)} €</span>
             </div>
-            <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/60">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/60">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                 style={{ width: `${getPct(turnTotals.comida)}%` }}
@@ -213,12 +211,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Tarde */}
           <div className="mb-3">
             <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-orange-400 flex items-center gap-1">
+              <span className="text-orange-600 dark:text-orange-400 flex items-center gap-1 font-bold">
                 <Sunset className="h-3 w-3" /> Tarde ({getPct(turnTotals.tarde)}%)
               </span>
-              <span className="text-white font-mono">{turnTotals.tarde.toFixed(1)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{turnTotals.tarde.toFixed(1)} €</span>
             </div>
-            <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/60">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/60">
               <div
                 className="h-full bg-orange-400 rounded-full transition-all duration-500"
                 style={{ width: `${getPct(turnTotals.tarde)}%` }}
@@ -229,12 +227,12 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           {/* Cena */}
           <div className="mb-3">
             <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-violet-400 flex items-center gap-1">
+              <span className="text-violet-600 dark:text-violet-400 flex items-center gap-1 font-bold">
                 <Moon className="h-3 w-3" /> Cena ({getPct(turnTotals.cena)}%)
               </span>
-              <span className="text-white font-mono">{turnTotals.cena.toFixed(1)} €</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{turnTotals.cena.toFixed(1)} €</span>
             </div>
-            <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/60">
+            <div className="w-full h-2 bg-slate-200 dark:bg-slate-900 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/60">
               <div
                 className="h-full bg-violet-500 rounded-full transition-all duration-500"
                 style={{ width: `${getPct(turnTotals.cena)}%` }}
@@ -243,9 +241,9 @@ export const SalesChart: React.FC<SalesChartProps> = ({
           </div>
         </div>
 
-        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 mt-2">
+        <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mt-2 font-bold font-mono">
           <span>Total Recaudado</span>
-          <span className="font-bold text-emerald-400 text-sm font-mono">
+          <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm font-mono">
             {totalCobros.toFixed(2)} €
           </span>
         </div>

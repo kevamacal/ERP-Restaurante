@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../supabaseClient';
 import type { Local, Empleado } from '../types';
+import { getRounded30MinISOString } from '../utils/dateUtils';
 import { Wifi, WifiOff, ArrowRight, ShieldCheck, CheckCircle2, Lock, HelpCircle, Search, Store, Delete, X } from 'lucide-react';
 
 interface ClockInViewProps {
@@ -212,7 +213,8 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
         .insert([
           {
             empleado_id: selectedEmployeeId,
-            tipo: tipo
+            tipo: tipo,
+            fecha_hora: getRounded30MinISOString()
           }
         ]);
 

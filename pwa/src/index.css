@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (.dark &);
+
 @theme {
   --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-scale-up: scale-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -101,33 +103,50 @@ body.light .glass-card:hover {
   box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.06);
 }
 
-/* Adjustments for Light Theme text colors */
-body.light .text-white {
+/* Adjustments for Light Theme text & input colors */
+body.light {
+  color: #0f172a;
+}
+
+body.light h1,
+body.light h2,
+body.light h3,
+body.light h4,
+body.light h5 {
+  color: #0f172a;
+}
+
+body.light table td.text-white,
+body.light table th.text-white {
   color: #0f172a !important;
 }
 
-body.light .text-slate-400 {
-  color: #64748b !important;
+/* Universal Select & Option Theme Styling */
+select {
+  color-scheme: dark;
 }
 
-body.light .text-slate-300 {
-  color: #334155 !important;
+body.dark select {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
 }
 
-body.light .text-slate-200 {
-  color: #1e293b !important;
+body.dark select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
 }
 
-body.light .bg-slate-900 {
-  background-color: #f1f5f9 !important;
-}
-
-body.light .bg-slate-950 {
+body.light select {
+  color-scheme: light;
   background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
 
-body.light .border-slate-800 {
-  border-color: #e2e8f0 !important;
+body.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Custom scrollbars */

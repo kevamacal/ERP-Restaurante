@@ -8,11 +8,11 @@ export const MOCK_LOCALES: Local[] = [
 
 export const MOCK_RESUMEN_DIARIO: Record<string, VentasResumen[]> = {
   local_1: [
-    { local_id: 'local_1', fecha: '2026-07-18', total_facturado: 24.70, num_tickets: 3, total_efectivo: 7.60, total_tarjeta: 17.10, ultima_actualizacion: new Date().toISOString() },
-    { local_id: 'local_1', fecha: '2026-07-17', total_facturado: 212.40, num_tickets: 12, total_efectivo: 65.90, total_tarjeta: 146.50, ultima_actualizacion: new Date().toISOString() },
-    { local_id: 'local_1', fecha: '2026-07-16', total_facturado: 185.20, num_tickets: 13, total_efectivo: 42.00, total_tarjeta: 143.20, ultima_actualizacion: new Date().toISOString() },
-    { local_id: 'local_1', fecha: '2026-07-15', total_facturado: 142.50, num_tickets: 9, total_efectivo: 95.00, total_tarjeta: 47.50, ultima_actualizacion: new Date().toISOString() },
-    { local_id: 'local_1', fecha: '2026-07-14', total_facturado: 356.90, num_tickets: 24, total_efectivo: 140.00, total_tarjeta: 216.90, ultima_actualizacion: new Date().toISOString() }
+    { local_id: 'local_1', fecha: '2026-07-18', total_facturado: 24.70, num_tickets: 3, total_efectivo: 7.60, total_tarjeta: 17.10, total_pendiente: 45.00, ultima_actualizacion: new Date().toISOString() },
+    { local_id: 'local_1', fecha: '2026-07-17', total_facturado: 212.40, num_tickets: 12, total_efectivo: 65.90, total_tarjeta: 146.50, total_pendiente: 28.50, ultima_actualizacion: new Date().toISOString() },
+    { local_id: 'local_1', fecha: '2026-07-16', total_facturado: 185.20, num_tickets: 13, total_efectivo: 42.00, total_tarjeta: 143.20, total_pendiente: 0.00, ultima_actualizacion: new Date().toISOString() },
+    { local_id: 'local_1', fecha: '2026-07-15', total_facturado: 142.50, num_tickets: 9, total_efectivo: 95.00, total_tarjeta: 47.50, total_pendiente: 15.00, ultima_actualizacion: new Date().toISOString() },
+    { local_id: 'local_1', fecha: '2026-07-14', total_facturado: 356.90, num_tickets: 24, total_efectivo: 140.00, total_tarjeta: 216.90, total_pendiente: 0.00, ultima_actualizacion: new Date().toISOString() }
   ],
   local_2: []
 };

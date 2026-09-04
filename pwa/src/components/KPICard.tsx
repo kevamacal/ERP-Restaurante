@@ -65,7 +65,7 @@ export const KPICard: React.FC<KPICardProps> = ({
       </div>
 
       <div className="flex items-baseline justify-between gap-1 flex-wrap">
-        <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white font-heading tracking-tight truncate">
+        <div className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-slate-900 dark:text-white font-heading tracking-tight truncate">
           {value}
         </div>
         {badgeText && (

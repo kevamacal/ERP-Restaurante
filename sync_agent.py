@@ -336,7 +336,8 @@ class DBFMetricsExtractor:
                         tickets[cab_id] = {
                             'tipo_cobro': tipo_cobro,
                             'hora': hora_num,
-                            'turno': 'diario'
+                            'turno': 'diario',
+                            'cab_estado': cab_estado
                         }
                         
         logger.info(f"  Scanned {processed_count:,} records in cabecera.DBF. Found {len(tickets):,} tickets matching business date.")
@@ -401,6 +402,7 @@ class DBFMetricsExtractor:
         for cab_id, meta in tickets.items():
             amount = ticket_totals.get(cab_id, 0.0)
             shift_id = meta['turno']
+            cab_estado = meta.get('cab_estado', 'C')
             
             # Daily/Shift aggregates
             if shift_id not in shifts:
@@ -408,24 +410,29 @@ class DBFMetricsExtractor:
                     'total_facturado': 0.0,
                     'total_efectivo': 0.0,
                     'total_tarjeta': 0.0,
+                    'total_pendiente': 0.0,
                     'num_tickets': 0
                 }
-            shifts[shift_id]['total_facturado'] += amount
-            shifts[shift_id]['num_tickets'] += 1
-            if meta['tipo_cobro'] == 'E':
-                shifts[shift_id]['total_efectivo'] += amount
+            if cab_estado in ('P', 'p'):
+                shifts[shift_id]['total_pendiente'] += amount
             else:
-                shifts[shift_id]['total_tarjeta'] += amount
+                shifts[shift_id]['total_facturado'] += amount
+                shifts[shift_id]['num_tickets'] += 1
+                if meta['tipo_cobro'] == 'E':
+                    shifts[shift_id]['total_efectivo'] += amount
+                else:
+                    shifts[shift_id]['total_tarjeta'] += amount
 
-            # Hourly aggregates
-            h = meta['hora']
-            if h not in hours:
-                hours[h] = {
-                    'total_facturado': 0.0,
-                    'num_tickets': 0
-                }
-            hours[h]['total_facturado'] += amount
-            hours[h]['num_tickets'] += 1
+            # Hourly aggregates (only closed sales)
+            if cab_estado not in ('P', 'p'):
+                h = meta['hora']
+                if h not in hours:
+                    hours[h] = {
+                        'total_facturado': 0.0,
+                        'num_tickets': 0
+                    }
+                hours[h]['total_facturado'] += amount
+                hours[h]['num_tickets'] += 1
 
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         date_str = target_date.strftime("%Y-%m-%d")
@@ -439,6 +446,7 @@ class DBFMetricsExtractor:
                 'num_tickets': data['num_tickets'],
                 'total_efectivo': round(data['total_efectivo'], 2),
                 'total_tarjeta': round(data['total_tarjeta'], 2),
+                'total_pendiente': round(data.get('total_pendiente', 0.0), 2),
                 'ultima_actualizacion': now_iso
             })
 

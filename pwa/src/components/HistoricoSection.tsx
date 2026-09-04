@@ -37,23 +37,23 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             <TrendingUp className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white font-heading">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
               Análisis Histórico: Ventas vs Gastos y Beneficios
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Evolución acumulada de facturación e inventario/costes
             </p>
           </div>
         </div>
 
-        <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center bg-slate-200/80 dark:bg-slate-900 p-1 rounded-xl border border-slate-300 dark:border-slate-800">
           <button
             type="button"
             onClick={() => setPeriodoTab('semanal')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'semanal'
                 ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Semanales
@@ -64,7 +64,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'mensual'
                 ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Mensuales
@@ -75,7 +75,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               periodoTab === 'anual'
                 ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             Anuales
@@ -145,7 +145,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
           <tbody className="divide-y divide-slate-800/50 font-medium">
             {currentData.map((row) => (
               <tr key={row.periodo} className="hover:bg-slate-800/30 transition-colors">
-                <td className="py-2.5 px-3 font-semibold text-white">{row.periodo}</td>
+                <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">{row.periodo}</td>
                 <td className="py-2.5 px-3 text-center font-mono">{row.tickets.toLocaleString('es-ES')}</td>
                 <td className="py-2.5 px-3 text-right text-emerald-400 font-mono font-bold">
                   {row.ventas.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
@@ -167,7 +167,7 @@ export const HistoricoSection: React.FC<HistoricoSectionProps> = ({
         {currentData.map((row) => (
           <div key={row.periodo} className="glass-panel p-4 rounded-2xl border border-slate-800 space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-white">{row.periodo}</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white">{row.periodo}</span>
               <span className="px-2.5 py-0.5 rounded-lg bg-slate-900 border border-slate-850 font-mono text-[10px] text-slate-350 font-bold">
                 Tickets: {row.tickets.toLocaleString('es-ES')}
               </span>

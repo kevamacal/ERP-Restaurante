@@ -14,6 +14,7 @@ export interface VentasResumen {
   num_tickets: number;
   total_efectivo: number;
   total_tarjeta: number;
+  total_pendiente?: number;
   ultima_actualizacion: string;
 }
 
@@ -30,6 +31,7 @@ export interface SummaryKPI {
   numTickets: number;
   totalEfectivo: number;
   totalTarjeta: number;
+  totalPendiente?: number;
   ticketMedio: number;
   ultimaActualizacion: string;
   comparativaPct: number;
@@ -44,6 +46,7 @@ export interface HistoricoItem {
   tickets: number;
   ventas: number;
   gastos: number;
+  ingresosExtra?: number;
   beneficio: number;
 }
 
@@ -63,13 +66,16 @@ export interface Fichaje {
   fecha_hora: string;
 }
 
+export type CategoriaGasto = 'Materia Prima' | 'Alquiler' | 'Suministros' | 'Gastos de Personal' | 'Ingreso / Bonificación' | 'Otros';
+
 export interface Gasto {
   id: string;
   local_id: string;
   fecha: string;
   concepto: string;
-  categoria: 'Materia Prima' | 'Alquiler' | 'Suministros' | 'Otros';
+  categoria: CategoriaGasto;
   importe: number;
+  tipo?: 'gasto' | 'ingreso';
   proveedor?: string;
   created_at?: string;
 }

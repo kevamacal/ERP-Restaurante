@@ -32,10 +32,10 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight leading-none font-heading flex items-center gap-2">
-                TPV Control <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">v1.0</span>
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none font-heading flex items-center gap-2">
+                TPV Control <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">v1.0</span>
               </h1>
-              <p className="text-xs text-slate-400 font-medium">Monitoreo de Facturación Multi-Local</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Monitoreo de Facturación Multi-Local</p>
             </div>
           </div>
 
@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onRefresh}
-              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
+              className="p-2 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/30 cursor-pointer"
               title="Actualizar datos"
             >
               <RefreshCw className="h-4 w-4" />
@@ -52,46 +52,49 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
+              className="p-2 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/30 cursor-pointer"
               title="Cambiar Tema"
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-450" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
             </button>
             <button
               type="button"
               onClick={onOpenSettings}
-              className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/30"
+              className="p-2 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/30 cursor-pointer"
               title="Configuración"
             >
-              <Settings className="h-4 w-4 text-indigo-400" />
+              <Settings className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             </button>
           </div>
         </div>
 
         {/* Local Selector Pills & Controls */}
         <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-          <div className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
-            {locales.map((loc) => (
-              <button
-                key={loc.id}
-                type="button"
-                onClick={() => onSelectLocal(loc.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap ${
-                  selectedLocal === loc.id
-                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                }`}
-              >
-                {loc.nombre}
-              </button>
-            ))}
+          <div className="flex items-center bg-slate-200/80 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-300 dark:border-slate-800 overflow-x-auto max-w-full">
+            {locales.map((loc) => {
+              const isSelected = selectedLocal === loc.id;
+              return (
+                <button
+                  key={loc.id}
+                  type="button"
+                  onClick={() => onSelectLocal(loc.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  {loc.nombre}
+                </button>
+              );
+            })}
           </div>
 
           <div className="hidden sm:flex items-center gap-2">
             <button
               type="button"
               onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/50"
+              className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
               title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
@@ -100,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onRefresh}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/50"
+              className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
               title="Actualizar datos"
             >
               <RefreshCw className="h-4 w-4" />
@@ -109,10 +112,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-350 transition-colors border border-slate-700/50"
+              className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
               title="Configuración"
             >
-              <Settings className="h-4 w-4 text-indigo-400" />
+              <Settings className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             </button>
           </div>
         </div>

@@ -26,7 +26,6 @@ import {
   Users,
   ToggleLeft,
   ToggleRight,
-  Zap,
   Coins,
   FileText,
   Camera,
@@ -129,17 +128,23 @@ export const App: React.FC = () => {
     useState<boolean>(false);
 
   // Expenses Form States
+  const [gastoTipo, setGastoTipo] = useState<"gasto" | "ingreso">("gasto");
   const [gastoConcepto, setGastoConcepto] = useState<string>("");
   const [gastoImporte, setGastoImporte] = useState<string>("");
   const [gastoFecha, setGastoFecha] = useState<string>(
     () => new Date().toISOString().split("T")[0],
   );
-  const [gastoCategoria, setGastoCategoria] = useState<
-    "Materia Prima" | "Alquiler" | "Suministros" | "Otros"
-  >("Materia Prima");
+  const [gastoCategoria, setGastoCategoria] = useState<import("./types").CategoriaGasto>("Materia Prima");
   const [gastoProveedor, setGastoProveedor] = useState<string>("");
 
-  // OCR Scan States
+  // Delete confirmation modal state
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    type: "gasto" | "ingreso" | "fichaje";
+    id: string;
+    title: string;
+    itemDetails: string;
+  } | null>(null);
   const [isScanningOCR, setIsScanningOCR] = useState<boolean>(false);
   const [ocrScanResult, setOcrScanResult] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -174,7 +179,7 @@ export const App: React.FC = () => {
           // Cost rate: specific employee's rate, fallback to global settings
           const rate =
             fic.empleados?.coste_hora !== undefined &&
-            fic.empleados?.coste_hora !== null
+              fic.empleados?.coste_hora !== null
               ? Number(fic.empleados.coste_hora)
               : hourlyWage;
           const shiftCost = validHours * rate;
@@ -253,7 +258,7 @@ export const App: React.FC = () => {
             const name = relatedFic?.empleados?.nombre || "Desconocido";
             const rate =
               relatedFic?.empleados?.coste_hora !== undefined &&
-              relatedFic?.empleados?.coste_hora !== null
+                relatedFic?.empleados?.coste_hora !== null
                 ? Number(relatedFic.empleados.coste_hora)
                 : hourlyWage;
             employeePayments[empId] = {
@@ -322,6 +327,13 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     document.body.className = theme;
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.body.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("dark");
+    }
     localStorage.setItem("app_theme", theme);
   }, [theme]);
 
@@ -340,7 +352,7 @@ export const App: React.FC = () => {
         .order("id");
       if (!error && data && data.length > 0) {
         setLocalesList([
-          { id: "all", nombre: "Todos los Locales (Consolidado)" },
+          { id: "all", nombre: "Todos los Locales" },
           ...data,
         ]);
       }
@@ -681,6 +693,7 @@ export const App: React.FC = () => {
       concepto: gastoConcepto.trim(),
       categoria: gastoCategoria,
       importe: parsedImporte,
+      tipo: gastoTipo,
       proveedor: gastoProveedor.trim() || undefined,
     };
 
@@ -739,6 +752,71 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleDeleteFichaje = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      const updatedAll = fichajesAll.filter((f) => f.id !== id);
+      const updatedList = fichajesList.filter((f) => f.id !== id);
+      setFichajesAll(updatedAll);
+      setFichajesList(updatedList);
+      localStorage.setItem("app_fichajes_fallback", JSON.stringify(updatedAll));
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("fichajes").delete().eq("id", id);
+      if (!error) {
+        fetchData();
+      } else {
+        console.error("Error deleting fichaje:", error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const requestDeleteGasto = (gasto: Gasto) => {
+    const isIngreso =
+      gasto.tipo === "ingreso" || gasto.categoria === "Ingreso / Bonificación";
+    setDeleteModalState({
+      isOpen: true,
+      type: isIngreso ? "ingreso" : "gasto",
+      id: gasto.id,
+      title: isIngreso ? "Eliminar Ingreso Extra" : "Eliminar Gasto",
+      itemDetails: `${gasto.concepto} (${gasto.proveedor || "Sin Proveedor"}) — ${gasto.importe.toFixed(2)} €`,
+    });
+  };
+
+  const requestDeleteFichaje = (fic: any) => {
+    const empName = fic.empleados?.nombre || "Empleado";
+    const dateObj = new Date(fic.fecha_hora);
+    const dateStr = dateObj.toLocaleDateString();
+    const timeStr = dateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    setDeleteModalState({
+      isOpen: true,
+      type: "fichaje",
+      id: fic.id,
+      title: "Eliminar Registro Horario",
+      itemDetails: `Fichaje de ${empName} (${fic.tipo.toUpperCase()}) — ${dateStr} ${timeStr}`,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModalState) return;
+    const { type, id } = deleteModalState;
+
+    if (type === "gasto" || type === "ingreso") {
+      await handleDeleteGasto(id);
+    } else if (type === "fichaje") {
+      await handleDeleteFichaje(id);
+    }
+
+    setDeleteModalState(null);
   };
 
   const handleOCRScanInvoice = () => {
@@ -803,6 +881,7 @@ export const App: React.FC = () => {
         numTickets: 0,
         totalEfectivo: 0,
         totalTarjeta: 0,
+        totalPendiente: 0,
         ticketMedio: 0,
         ultimaActualizacion: new Date().toISOString(),
         comparativaPct: 0,
@@ -832,6 +911,10 @@ export const App: React.FC = () => {
       (acc, r) => acc + (Number(r.total_tarjeta) || 0),
       0,
     );
+    const totalPendiente = dayRecords.reduce(
+      (acc, r) => acc + (Number(r.total_pendiente) || 0),
+      0,
+    );
     const ticketMedio = numTickets > 0 ? totalFacturado / numTickets : 0;
     const lastUpdate =
       dayRecords[0].ultima_actualizacion || new Date().toISOString();
@@ -848,6 +931,7 @@ export const App: React.FC = () => {
       numTickets,
       totalEfectivo,
       totalTarjeta,
+      totalPendiente,
       ticketMedio,
       ultimaActualizacion: lastUpdate,
       comparativaPct: 12.4,
@@ -955,8 +1039,9 @@ export const App: React.FC = () => {
         .map((key) => {
           const v = map[key].ventas;
 
-          // Sum up real expenses for dates that fall into this period
+          // Sum up real expenses and extra income for dates that fall into this period
           let realGastosPeriodo = 0;
+          let realIngresosExtraPeriodo = 0;
           gastosList.forEach((g) => {
             const { key: semanaG } = getWeekIdentifier(g.fecha);
             const gd = new Date(g.fecha);
@@ -964,12 +1049,17 @@ export const App: React.FC = () => {
             const anoG = gd.getFullYear().toString();
             const mesG = `${anoG}-${String(gd.getMonth() + 1).padStart(2, "0")}`;
 
-            if (prefix === "Año " && key === anoG) {
-              realGastosPeriodo += g.importe;
-            } else if (prefix === "" && key === mesG) {
-              realGastosPeriodo += g.importe;
-            } else if (prefix === "Semana " && key === semanaG) {
-              realGastosPeriodo += g.importe;
+            const matches =
+              (prefix === "Año " && key === anoG) ||
+              (prefix === "" && key === mesG) ||
+              (prefix === "Semana " && key === semanaG);
+
+            if (matches) {
+              if (g.tipo === "ingreso" || g.categoria === "Ingreso / Bonificación") {
+                realIngresosExtraPeriodo += g.importe;
+              } else {
+                realGastosPeriodo += g.importe;
+              }
             }
           });
 
@@ -995,6 +1085,7 @@ export const App: React.FC = () => {
           });
 
           const g = costeMateriaPrima + costePersonal;
+          const beneficio = v + realIngresosExtraPeriodo - g;
 
           return {
             periodo:
@@ -1004,7 +1095,8 @@ export const App: React.FC = () => {
             tickets: map[key].tickets,
             ventas: Math.round(v * 100) / 100,
             gastos: Math.round(g * 100) / 100,
-            beneficio: Math.round((v - g) * 100) / 100,
+            ingresosExtra: Math.round(realIngresosExtraPeriodo * 100) / 100,
+            beneficio: Math.round(beneficio * 100) / 100,
           };
         });
     };
@@ -1077,10 +1169,10 @@ export const App: React.FC = () => {
           localesList.length > 0
             ? localesList
             : [
-                { id: "all", nombre: "Todos los Locales" },
-                { id: "local_1", nombre: "Peña la Milagrosa" },
-                { id: "local_2", nombre: "El Parrilla" },
-              ]
+              { id: "all", nombre: "Todos los Locales" },
+              { id: "local_1", nombre: "Peña la Milagrosa" },
+              { id: "local_2", nombre: "El Parrilla" },
+            ]
         }
         theme={theme}
         onToggleTheme={toggleTheme}
@@ -1112,7 +1204,7 @@ export const App: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <Calendar className="h-3.5 w-3.5 text-indigo-400" />
                 {resumenData[0]?.fecha || "Sin ventas cargadas"}
               </span>
@@ -1158,11 +1250,11 @@ export const App: React.FC = () => {
             />
 
             <KPICard
-              title="Productividad / Hora"
-              value={`${(kpis.productividad || 0).toFixed(2)} €/h`}
-              subtitle="Ventas medias por hora-trabajador"
-              icon={Zap}
-              color="cyan"
+              title="Pendiente por Cobrar"
+              value={`${(kpis.totalPendiente || 0).toFixed(2)} €`}
+              subtitle="Dinero total acumulado por cobrar"
+              icon={Clock}
+              color="amber"
             />
           </div>
 
@@ -1187,46 +1279,43 @@ export const App: React.FC = () => {
           />
 
           {/* Módulo Administrador Dual (Cierres vs Control Horario) */}
-          <div className="glass-panel rounded-2xl p-5 border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 mb-6 gap-4">
+          <div className="glass-panel rounded-2xl p-5 border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-6 gap-4">
               <div className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-indigo-400" />
-                <h3 className="text-base font-bold text-white font-heading">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
                   Gestión de Establecimiento
                 </h3>
               </div>
 
-              <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl self-start sm:self-auto">
+              <div className="flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-xl self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setActiveTab("sales")}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === "sales"
-                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === "sales"
+                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
                 >
                   Cierres Diarios
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("horario")}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === "horario"
-                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === "horario"
+                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
                 >
                   Registro Horario (Fichajes)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("gastos")}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === "gastos"
-                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === "gastos"
+                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
                 >
                   Facturas y Gastos
                 </button>
@@ -1262,7 +1351,7 @@ export const App: React.FC = () => {
                             key={rowKey}
                             className="hover:bg-slate-800/40 transition-colors"
                           >
-                            <td className="py-3 px-4 font-semibold text-white">
+                            <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
                               {locName}
                             </td>
                             <td className="py-3 px-4 text-slate-300 font-mono">
@@ -1299,7 +1388,7 @@ export const App: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Manage Employees */}
                 <div className="lg:col-span-1 space-y-6">
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
                       <UserPlus className="h-4 w-4" /> Agregar Trabajador
                     </h4>
@@ -1307,7 +1396,7 @@ export const App: React.FC = () => {
                       <div className="space-y-1">
                         <label
                           htmlFor="newEmpName"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           Nombre Completo
                         </label>
@@ -1317,13 +1406,13 @@ export const App: React.FC = () => {
                           value={newEmpName}
                           onChange={(e) => setNewEmpName(e.target.value)}
                           placeholder="Ej. Juan Pérez"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div className="space-y-1">
                         <label
                           htmlFor="newEmpPin"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           PIN Fichaje (Opcional)
                         </label>
@@ -1336,7 +1425,7 @@ export const App: React.FC = () => {
                           }
                           placeholder="0000"
                           maxLength={4}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-center font-bold tracking-widest focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-center font-bold tracking-widest text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                         />
                       </div>
                       <button
@@ -1351,7 +1440,7 @@ export const App: React.FC = () => {
                   </div>
 
                   {/* Registrar Fichaje Manual (Desktop) */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
                       <Clock className="h-4 w-4" /> Registrar Fichaje Manual
                     </h4>
@@ -1359,7 +1448,7 @@ export const App: React.FC = () => {
                       <div className="space-y-1">
                         <label
                           htmlFor="manualEmp"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           Empleado
                         </label>
@@ -1367,7 +1456,7 @@ export const App: React.FC = () => {
                           id="manualEmp"
                           value={manualEmpId}
                           onChange={(e) => setManualEmpId(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                         >
                           <option value="">Selecciona un empleado...</option>
                           {adminEmployees
@@ -1381,29 +1470,27 @@ export const App: React.FC = () => {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-1">
+                        <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider block mb-1">
                           Tipo de Evento
                         </label>
-                        <div className="flex bg-slate-950 border border-slate-800 p-1 rounded-xl">
+                        <div className="flex bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-1 rounded-xl">
                           <button
                             type="button"
                             onClick={() => setManualTipo("entrada")}
-                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                              manualTipo === "entrada"
-                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                : "text-slate-450 hover:text-slate-200"
-                            }`}
+                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${manualTipo === "entrada"
+                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                              }`}
                           >
                             Entrada
                           </button>
                           <button
                             type="button"
                             onClick={() => setManualTipo("salida")}
-                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                              manualTipo === "salida"
-                                ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                                : "text-slate-450 hover:text-slate-200"
-                            }`}
+                            className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${manualTipo === "salida"
+                              ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                              }`}
                           >
                             Salida
                           </button>
@@ -1413,7 +1500,7 @@ export const App: React.FC = () => {
                       <div className="space-y-1">
                         <label
                           htmlFor="manualFechaHora"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           Fecha y Hora
                         </label>
@@ -1422,7 +1509,7 @@ export const App: React.FC = () => {
                           type="datetime-local"
                           value={manualFechaHora}
                           onChange={(e) => setManualFechaHora(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                         />
                       </div>
 
@@ -1437,12 +1524,12 @@ export const App: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                       <Users className="h-4 w-4 text-indigo-400" /> Plantilla (
                       {adminEmployees.length})
                     </h4>
-                    <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-800/60 pr-1">
+                    <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800/60 pr-1">
                       {adminEmployees.length > 0 ? (
                         adminEmployees.map((emp) => (
                           <div
@@ -1450,7 +1537,7 @@ export const App: React.FC = () => {
                             className="py-2.5 flex items-center justify-between text-xs gap-3"
                           >
                             <span
-                              className={`font-semibold truncate flex-1 ${emp.activo ? "text-white" : "text-slate-500 line-through"}`}
+                              className={`font-semibold truncate flex-1 ${emp.activo ? "text-slate-900 dark:text-white" : "text-slate-400 line-through"}`}
                             >
                               {emp.nombre}
                             </span>
@@ -1487,7 +1574,7 @@ export const App: React.FC = () => {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-12 bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-0.5 text-[11px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
+                                  className="w-12 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-1.5 py-0.5 text-[11px] text-center font-bold text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                                 />
                                 <span className="text-[10px] text-slate-500 font-semibold">
                                   €/h
@@ -1518,20 +1605,20 @@ export const App: React.FC = () => {
                   </div>
 
                   {/* Resumen Semanal de Pagos */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                         <Coins className="h-4 w-4" /> Pagos Semanales
                       </h4>
-                      <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-850 text-[10px]">
+                      <div className="flex items-center bg-slate-200 dark:bg-slate-950 rounded-lg p-0.5 border border-slate-300 dark:border-slate-800 text-[10px]">
                         <button
                           type="button"
                           onClick={() => setWeekOffset((o) => o - 1)}
-                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors"
+                          className="px-1.5 py-0.5 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded font-semibold transition-colors"
                         >
                           &lt;
                         </button>
-                        <span className="px-2 text-slate-355 font-semibold">
+                        <span className="px-2 text-slate-700 dark:text-slate-300 font-semibold">
                           {weekOffset === 0
                             ? "Esta Sem."
                             : weekOffset === -1
@@ -1543,7 +1630,7 @@ export const App: React.FC = () => {
                           onClick={() =>
                             setWeekOffset((o) => Math.min(0, o + 1))
                           }
-                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors disabled:opacity-30"
+                          className="px-1.5 py-0.5 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded font-semibold transition-colors disabled:opacity-30"
                           disabled={weekOffset === 0}
                         >
                           &gt;
@@ -1551,16 +1638,16 @@ export const App: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="text-[10px] text-slate-400 leading-tight">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                       Rango:{" "}
-                      <span className="font-mono text-slate-200">
+                      <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
                         {weeklyPaymentsData.mondayDate.toLocaleDateString(
                           "es-ES",
                           { day: "numeric", month: "short" },
                         )}
                       </span>{" "}
                       al{" "}
-                      <span className="font-mono text-slate-200">
+                      <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
                         {weeklyPaymentsData.sundayDate.toLocaleDateString(
                           "es-ES",
                           { day: "numeric", month: "short" },
@@ -1568,7 +1655,7 @@ export const App: React.FC = () => {
                       </span>
                     </p>
 
-                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-800/50">
+                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-200 dark:divide-slate-800/50">
                       {weeklyPaymentsData.list.length > 0 ? (
                         weeklyPaymentsData.list.map((emp) => (
                           <div
@@ -1576,14 +1663,14 @@ export const App: React.FC = () => {
                             className="pt-2 flex items-center justify-between text-xs font-semibold"
                           >
                             <div>
-                              <span className="text-slate-200 font-bold block">
+                              <span className="text-slate-800 dark:text-slate-200 font-bold block">
                                 {emp.name}
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                                 {emp.hours.toFixed(1)}h × {emp.rate.toFixed(1)}€
                               </span>
                             </div>
-                            <span className="font-bold text-emerald-400 font-mono text-right">
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-right">
                               {emp.total.toFixed(2)} €
                             </span>
                           </div>
@@ -1595,7 +1682,7 @@ export const App: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-450 font-bold font-mono">
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-bold font-mono">
                       <span>Total Liquidación</span>
                       <span className="font-bold text-emerald-400 text-sm font-mono">
                         {weeklyPaymentsData.grandTotal.toFixed(2)} €
@@ -1606,54 +1693,64 @@ export const App: React.FC = () => {
 
                 {/* Right Column: Clock-in Logs */}
                 <div className="lg:col-span-2 space-y-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <Clock className="h-4 w-4 text-indigo-400" /> Historial de
                     Registro de Jornada (Últimos 50)
                   </h4>
 
-                  <div className="overflow-x-auto border border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-transparent">
                     {fichajesList.length > 0 ? (
                       <table className="w-full text-left border-collapse text-xs">
                         <thead>
-                          <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 uppercase font-semibold">
                             <th className="py-3 px-4">Trabajador</th>
-                            <th className="py-3 px-4 text-center">Acción</th>
+                            <th className="py-3 px-4 text-center">Tipo</th>
                             <th className="py-3 px-4 text-center">Fecha</th>
                             <th className="py-3 px-4 text-right">Hora</th>
+                            <th className="py-3 px-4 text-center">Acción</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/60 font-medium">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
                           {fichajesList.map((fic) => {
                             const dateObj = new Date(fic.fecha_hora);
                             return (
                               <tr
                                 key={fic.id}
-                                className="hover:bg-slate-800/40 transition-colors"
+                                className="hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors"
                               >
-                                <td className="py-3 px-4 text-white font-semibold">
+                                <td className="py-3 px-4 text-slate-900 dark:text-white font-semibold">
                                   {fic.empleados?.nombre ||
                                     "Empleado Desconocido"}
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                   <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                      fic.tipo === "entrada"
-                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                        : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                    }`}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${fic.tipo === "entrada"
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                      : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                                      }`}
                                   >
                                     {fic.tipo.toUpperCase()}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4 text-center text-slate-300 font-mono">
+                                <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300 font-mono">
                                   {dateObj.toLocaleDateString()}
                                 </td>
-                                <td className="py-3 px-4 text-right text-slate-300 font-mono">
+                                <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 font-mono">
                                   {dateObj.toLocaleTimeString([], {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                     second: "2-digit",
                                   })}
+                                </td>
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => requestDeleteFichaje(fic)}
+                                    className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                                    title="Eliminar Fichaje"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
                                 </td>
                               </tr>
                             );
@@ -1678,33 +1775,71 @@ export const App: React.FC = () => {
                   {/* Log Expense Manually */}
                   <form
                     onSubmit={handleAddGasto}
-                    className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4"
+                    className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4"
                   >
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                      <FileText className="h-4 w-4" /> Registrar Gasto Manual
-                    </h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                        <FileText className="h-4 w-4" /> Registrar Movimiento
+                      </h4>
+                    </div>
+
+                    {/* Type Selector (Gasto vs Ingreso) */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider block mb-1">
+                        Tipo de Operación
+                      </label>
+                      <div className="flex bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGastoTipo("gasto");
+                            if (gastoCategoria === "Ingreso / Bonificación") setGastoCategoria("Materia Prima");
+                          }}
+                          className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "gasto"
+                            ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                            }`}
+                        >
+                          Gasto / Factura
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGastoTipo("ingreso");
+                            setGastoCategoria("Ingreso / Bonificación");
+                          }}
+                          className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "ingreso"
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                            }`}
+                        >
+                          Ingreso Extra
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoProv"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
-                          Proveedor
+                          Proveedor / Origen
                         </label>
                         <input
                           id="gastoProv"
                           type="text"
                           value={gastoProveedor}
                           onChange={(e) => setGastoProveedor(e.target.value)}
-                          placeholder="Ej. Distribuidora S.L."
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          placeholder="Ej. Distribuidora S.L. / Bonificación Heineken"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                         />
                       </div>
 
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoConcept"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           Concepto *
                         </label>
@@ -1714,8 +1849,8 @@ export const App: React.FC = () => {
                           required
                           value={gastoConcepto}
                           onChange={(e) => setGastoConcepto(e.target.value)}
-                          placeholder="Ej. Compra de verdura"
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          placeholder={gastoTipo === "ingreso" ? "Ej. Rappel trimestral cerveza" : "Ej. Compra de verdura"}
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                         />
                       </div>
 
@@ -1723,7 +1858,7 @@ export const App: React.FC = () => {
                         <div className="space-y-1">
                           <label
                             htmlFor="gastoImp"
-                            className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                            className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                           >
                             Importe (€) *
                           </label>
@@ -1736,13 +1871,13 @@ export const App: React.FC = () => {
                             value={gastoImporte}
                             onChange={(e) => setGastoImporte(e.target.value)}
                             placeholder="0.00"
-                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                           />
                         </div>
                         <div className="space-y-1">
                           <label
                             htmlFor="gastoCat"
-                            className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                            className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                           >
                             Categoría *
                           </label>
@@ -1752,11 +1887,13 @@ export const App: React.FC = () => {
                             onChange={(e) =>
                               setGastoCategoria(e.target.value as any)
                             }
-                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                           >
                             <option value="Materia Prima">Materia Prima</option>
                             <option value="Alquiler">Alquiler</option>
                             <option value="Suministros">Suministros</option>
+                            <option value="Gastos de Personal">Gastos de Personal</option>
+                            <option value="Ingreso / Bonificación">Ingreso / Bonificación</option>
                             <option value="Otros">Otros</option>
                           </select>
                         </div>
@@ -1765,7 +1902,7 @@ export const App: React.FC = () => {
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoFech"
-                          className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider"
+                          className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider"
                         >
                           Fecha *
                         </label>
@@ -1775,25 +1912,28 @@ export const App: React.FC = () => {
                           required
                           value={gastoFecha}
                           onChange={(e) => setGastoFecha(e.target.value)}
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                         />
                       </div>
 
                       <button
                         type="submit"
-                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5"
+                        className={`w-full py-2 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5 ${gastoTipo === "ingreso"
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-indigo-500 hover:bg-indigo-600"
+                          }`}
                       >
-                        <Plus className="h-4 w-4" /> Guardar Gasto
+                        <Plus className="h-4 w-4" /> {gastoTipo === "ingreso" ? "Guardar Ingreso Extra" : "Guardar Gasto"}
                       </button>
                     </div>
                   </form>
 
                   {/* OCR AI Scanner */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                       <Camera className="h-4 w-4" /> Escaneo de Facturas con IA
                     </h4>
-                    <p className="text-[10px] text-slate-400 leading-tight">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                       Sube una imagen o PDF de tu ticket/factura para escanear y
                       extraer automáticamente el proveedor, la fecha, la
                       categoría y el total mediante Inteligencia Artificial
@@ -1801,14 +1941,14 @@ export const App: React.FC = () => {
                     </p>
 
                     <div className="space-y-3">
-                      <div className="border-2 border-dashed border-slate-800 hover:border-slate-700 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-slate-955/40 relative overflow-hidden group">
+                      <div className="border-2 border-dashed border-slate-300 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-700 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-white/50 dark:bg-slate-950/40 relative overflow-hidden group">
                         {isScanningOCR ? (
                           <div className="space-y-2 py-4">
-                            <RefreshCw className="h-6 w-6 text-emerald-400 animate-spin mx-auto" />
-                            <p className="text-xs text-slate-300 font-semibold">
+                            <RefreshCw className="h-6 w-6 text-emerald-500 animate-spin mx-auto" />
+                            <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold">
                               Procesando imagen con IA...
                             </p>
-                            <div className="w-24 h-1 bg-slate-800 mx-auto rounded-full overflow-hidden">
+                            <div className="w-24 h-1 bg-slate-200 dark:bg-slate-800 mx-auto rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-emerald-500 animate-pulse"
                                 style={{ width: "100%" }}
@@ -1820,8 +1960,8 @@ export const App: React.FC = () => {
                             onClick={handleOCRScanInvoice}
                             className="space-y-2 py-2"
                           >
-                            <Camera className="h-7 w-7 text-slate-500 group-hover:text-emerald-400 group-hover:scale-110 transition-all mx-auto" />
-                            <p className="text-xs font-bold text-slate-300">
+                            <Camera className="h-7 w-7 text-slate-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all mx-auto" />
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-300">
                               Haz una foto o sube un archivo
                             </p>
                             <span className="text-[9px] text-slate-500 font-medium">
@@ -1832,7 +1972,7 @@ export const App: React.FC = () => {
                       </div>
 
                       {ocrScanResult && (
-                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-semibold flex items-center gap-2">
+                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-2">
                           <Check className="h-4 w-4 shrink-0" />
                           <span>{ocrScanResult}</span>
                         </div>
@@ -1844,7 +1984,7 @@ export const App: React.FC = () => {
                 {/* Right Column: Expenses History */}
                 <div className="lg:col-span-2 space-y-4">
                   {isGastosTableMissing && (
-                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 space-y-2.5">
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 space-y-2.5">
                       <div className="flex items-start gap-2 text-xs font-bold">
                         <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                         <div>
@@ -1852,7 +1992,7 @@ export const App: React.FC = () => {
                             Tabla 'gastos' no creada en Supabase (Respaldo Local
                             Activo)
                           </span>
-                          <p className="text-[10px] text-slate-450 font-normal mt-0.5">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-450 font-normal mt-0.5">
                             Estamos usando <code>localStorage</code>{" "}
                             temporalmente. Ejecuta este script en el SQL Editor
                             de tu consola de Supabase para activar la
@@ -1860,7 +2000,7 @@ export const App: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <pre className="text-[9px] bg-slate-955 p-2.5 rounded-xl border border-slate-850 font-mono text-slate-300 overflow-x-auto select-all max-h-32">
+                      <pre className="text-[9px] bg-slate-900 p-2.5 rounded-xl border border-slate-800 font-mono text-slate-300 overflow-x-auto select-all max-h-32">
                         {`CREATE TABLE IF NOT EXISTS gastos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     local_id TEXT NOT NULL,
@@ -1876,25 +2016,36 @@ export const App: React.FC = () => {
                   )}
 
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <FileText className="h-4 w-4 text-indigo-400" /> Registro
-                      Histórico de Gastos y Facturas
+                      Histórico de Gastos e Ingresos
                     </h4>
-                    <span className="text-[11px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl font-mono">
-                      Total Periodo:{" "}
-                      {gastosList
-                        .reduce((acc, g) => acc + g.importe, 0)
-                        .toFixed(2)}{" "}
-                      €
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl font-mono">
+                        Gastos:{" "}
+                        {gastosList
+                          .filter((g) => g.tipo !== "ingreso" && g.categoria !== "Ingreso / Bonificación")
+                          .reduce((acc, g) => acc + g.importe, 0)
+                          .toFixed(2)}{" "}
+                        €
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl font-mono">
+                        Ingresos Extra:{" "}
+                        {gastosList
+                          .filter((g) => g.tipo === "ingreso" || g.categoria === "Ingreso / Bonificación")
+                          .reduce((acc, g) => acc + g.importe, 0)
+                          .toFixed(2)}{" "}
+                        €
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-transparent">
                     {gastosList.length > 0 ? (
                       <table className="w-full text-left border-collapse text-xs">
                         <thead>
-                          <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 uppercase font-semibold">
-                            <th className="py-3 px-4">Proveedor</th>
+                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 uppercase font-semibold">
+                            <th className="py-3 px-4">Proveedor / Origen</th>
                             <th className="py-3 px-4">Concepto</th>
                             <th className="py-3 px-4 text-center">Categoría</th>
                             <th className="py-3 px-4 text-center">Fecha</th>
@@ -1902,46 +2053,51 @@ export const App: React.FC = () => {
                             <th className="py-3 px-4 text-center">Acción</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/60 font-medium">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
                           {gastosList.map((g) => {
+                            const isIngreso = g.tipo === "ingreso" || g.categoria === "Ingreso / Bonificación";
+                            const isPersonal = g.categoria === "Gastos de Personal";
                             return (
                               <tr
                                 key={g.id}
-                                className="hover:bg-slate-800/40 transition-colors"
+                                className="hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors"
                               >
-                                <td className="py-3 px-4 text-white font-semibold">
+                                <td className="py-3 px-4 text-slate-900 dark:text-white font-semibold">
                                   {g.proveedor || "Sin Proveedor"}
                                 </td>
-                                <td className="py-3 px-4 text-slate-300">
+                                <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                                   {g.concepto}
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                   <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                      g.categoria === "Materia Prima"
-                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                        : g.categoria === "Alquiler"
-                                          ? "bg-violet-500/10 text-violet-400 border-violet-500/20"
-                                          : g.categoria === "Suministros"
-                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                            : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                    }`}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${isIngreso
+                                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                      : isPersonal
+                                        ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20"
+                                        : g.categoria === "Materia Prima"
+                                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                                          : g.categoria === "Alquiler"
+                                            ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                                            : g.categoria === "Suministros"
+                                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                              : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                                      }`}
                                   >
                                     {g.categoria}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4 text-center text-slate-400 font-mono">
+                                <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300 font-mono">
                                   {g.fecha}
                                 </td>
-                                <td className="py-3 px-4 text-right text-rose-450 font-bold font-mono">
-                                  {g.importe.toFixed(2)} €
+                                <td className={`py-3 px-4 text-right font-bold font-mono ${isIngreso ? "text-emerald-400" : "text-rose-450"}`}>
+                                  {isIngreso ? "+" : "-"}{g.importe.toFixed(2)} €
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteGasto(g.id)}
+                                    onClick={() => requestDeleteGasto(g)}
                                     className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
-                                    title="Eliminar Gasto"
+                                    title="Eliminar Registro"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
@@ -2031,11 +2187,11 @@ export const App: React.FC = () => {
                 />
 
                 <KPICard
-                  title="Productividad"
-                  value={`${(kpis.productividad || 0).toFixed(1)} €/h`}
-                  subtitle="Ventas / Hora-trabajo"
-                  icon={Zap}
-                  color="cyan"
+                  title="Pendiente Cobro"
+                  value={`${(kpis.totalPendiente || 0).toFixed(1)} €`}
+                  subtitle="Mesas / Fiados pendientes"
+                  icon={Clock}
+                  color="amber"
                 />
               </div>
 
@@ -2119,33 +2275,30 @@ export const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab("sales")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                    activeTab === "sales"
-                      ? "bg-indigo-500 text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${activeTab === "sales"
+                    ? "bg-indigo-500 text-white shadow-md"
+                    : "text-slate-400 hover:text-white"
+                    }`}
                 >
                   Cierres
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("horario")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                    activeTab === "horario"
-                      ? "bg-indigo-500 text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${activeTab === "horario"
+                    ? "bg-indigo-500 text-white shadow-md"
+                    : "text-slate-400 hover:text-white"
+                    }`}
                 >
                   Personal
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("gastos")}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                    activeTab === "gastos"
-                      ? "bg-indigo-500 text-white shadow-md"
-                      : "text-slate-400 hover:text-white"
-                  }`}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${activeTab === "gastos"
+                    ? "bg-indigo-500 text-white shadow-md"
+                    : "text-slate-400 hover:text-white"
+                    }`}
                 >
                   Gastos
                 </button>
@@ -2171,7 +2324,7 @@ export const App: React.FC = () => {
                         >
                           <div className="flex justify-between items-start">
                             <div>
-                              <span className="text-xs font-bold text-white block">
+                              <span className="text-xs font-bold text-slate-900 dark:text-white block">
                                 {locName}
                               </span>
                               <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
@@ -2237,8 +2390,8 @@ export const App: React.FC = () => {
                     </h4>
 
                     {/* Add Employee Compact Card */}
-                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-3.5">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-3.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
                         <UserPlus className="h-4 w-4 text-indigo-400" />
                         <span>Agregar Trabajador</span>
                       </div>
@@ -2246,7 +2399,7 @@ export const App: React.FC = () => {
                         <div className="space-y-1">
                           <label
                             htmlFor="newEmpNameMob"
-                            className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                            className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                           >
                             Nombre
                           </label>
@@ -2256,13 +2409,13 @@ export const App: React.FC = () => {
                             value={newEmpName}
                             onChange={(e) => setNewEmpName(e.target.value)}
                             placeholder="Ej. Juan P."
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-600"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600"
                           />
                         </div>
                         <div className="space-y-1">
                           <label
                             htmlFor="newEmpPinMob"
-                            className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                            className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                           >
                             PIN (Opcional)
                           </label>
@@ -2275,7 +2428,7 @@ export const App: React.FC = () => {
                             }
                             placeholder="0000"
                             maxLength={4}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-center font-bold tracking-widest focus:outline-none focus:border-indigo-500"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-center font-bold tracking-widest focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                           />
                         </div>
                       </div>
@@ -2290,8 +2443,8 @@ export const App: React.FC = () => {
                     </div>
 
                     {/* Registrar Fichaje Manual (Mobile) */}
-                    <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-3.5">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-3.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
                         <Clock className="h-4 w-4 text-indigo-400" />
                         <span>Fichaje Manual</span>
                       </div>
@@ -2299,7 +2452,7 @@ export const App: React.FC = () => {
                         <div className="space-y-1">
                           <label
                             htmlFor="manualEmpMob"
-                            className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block"
+                            className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block"
                           >
                             Empleado
                           </label>
@@ -2307,7 +2460,7 @@ export const App: React.FC = () => {
                             id="manualEmpMob"
                             value={manualEmpId}
                             onChange={(e) => setManualEmpId(e.target.value)}
-                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                           >
                             <option value="">Seleccionar...</option>
                             {adminEmployees
@@ -2321,29 +2474,27 @@ export const App: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block mb-1">
+                            <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block mb-1">
                               Tipo
                             </label>
-                            <div className="flex bg-slate-955 border border-slate-800 p-0.5 rounded-lg">
+                            <div className="flex bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-0.5 rounded-lg">
                               <button
                                 type="button"
                                 onClick={() => setManualTipo("entrada")}
-                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${
-                                  manualTipo === "entrada"
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                    : "text-slate-450"
-                                }`}
+                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${manualTipo === "entrada"
+                                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                  : "text-slate-600 dark:text-slate-400"
+                                  }`}
                               >
                                 Ent.
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setManualTipo("salida")}
-                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${
-                                  manualTipo === "salida"
-                                    ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-                                    : "text-slate-450"
-                                }`}
+                                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all cursor-pointer text-center ${manualTipo === "salida"
+                                  ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30"
+                                  : "text-slate-600 dark:text-slate-400"
+                                  }`}
                               >
                                 Sal.
                               </button>
@@ -2352,7 +2503,7 @@ export const App: React.FC = () => {
                           <div className="space-y-1">
                             <label
                               htmlFor="manualFechaHoraMob"
-                              className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block"
+                              className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block"
                             >
                               Fecha/Hora
                             </label>
@@ -2363,7 +2514,7 @@ export const App: React.FC = () => {
                               onChange={(e) =>
                                 setManualFechaHora(e.target.value)
                               }
-                              className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[10px] focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                              className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-[10px] focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                             />
                           </div>
                         </div>
@@ -2379,18 +2530,18 @@ export const App: React.FC = () => {
                     </div>
 
                     {/* Employee List Horizontal Scroll or visual bubbles */}
-                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800/80">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">
+                    <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-2 px-1">
                         Plantilla ({adminEmployees.length})
                       </span>
-                      <div className="max-h-[140px] overflow-y-auto divide-y divide-slate-800/60 pr-1">
+                      <div className="max-h-[140px] overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800/60 pr-1">
                         {adminEmployees.map((emp) => (
                           <div
                             key={emp.id}
                             className="py-2 flex items-center justify-between text-xs gap-3"
                           >
                             <span
-                              className={`font-semibold truncate flex-1 ${emp.activo ? "text-white" : "text-slate-500 line-through"}`}
+                              className={`font-semibold truncate flex-1 ${emp.activo ? "text-slate-900 dark:text-white" : "text-slate-400 line-through"}`}
                             >
                               {emp.nombre}
                             </span>
@@ -2427,7 +2578,7 @@ export const App: React.FC = () => {
                                       e.currentTarget.blur();
                                     }
                                   }}
-                                  className="w-11 bg-slate-950 border border-slate-800 rounded-lg px-1 py-0.5 text-[10px] text-center font-bold text-slate-300 focus:outline-none focus:border-indigo-500"
+                                  className="w-11 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-1 py-0.5 text-[10px] text-center font-bold text-slate-900 dark:text-slate-300 focus:outline-none focus:border-indigo-500"
                                 />
                                 <span className="text-[9px] text-slate-500 font-semibold">
                                   €/h
@@ -2438,12 +2589,12 @@ export const App: React.FC = () => {
                                 onClick={() =>
                                   handleToggleEmployeeActive(emp.id, emp.activo)
                                 }
-                                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                className="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                               >
                                 {emp.activo ? (
                                   <ToggleRight className="h-5 w-5 text-emerald-400" />
                                 ) : (
-                                  <ToggleLeft className="h-5 w-5 text-slate-655" />
+                                  <ToggleLeft className="h-5 w-5 text-slate-400 dark:text-slate-600" />
                                 )}
                               </button>
                             </div>
@@ -2454,20 +2605,20 @@ export const App: React.FC = () => {
                   </div>
 
                   {/* Resumen Semanal de Pagos Mobile */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                         <Coins className="h-4 w-4" /> Pagos Semanales
                       </h4>
-                      <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-850 text-[10px]">
+                      <div className="flex items-center bg-slate-200 dark:bg-slate-950 rounded-lg p-0.5 border border-slate-300 dark:border-slate-800 text-[10px]">
                         <button
                           type="button"
                           onClick={() => setWeekOffset((o) => o - 1)}
-                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors"
+                          className="px-1.5 py-0.5 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded font-semibold transition-colors"
                         >
                           &lt;
                         </button>
-                        <span className="px-2 text-slate-350 font-semibold">
+                        <span className="px-2 text-slate-700 dark:text-slate-300 font-semibold">
                           {weekOffset === 0
                             ? "Esta Sem."
                             : weekOffset === -1
@@ -2479,7 +2630,7 @@ export const App: React.FC = () => {
                           onClick={() =>
                             setWeekOffset((o) => Math.min(0, o + 1))
                           }
-                          className="px-1.5 py-0.5 hover:bg-slate-800 rounded font-semibold transition-colors disabled:opacity-30"
+                          className="px-1.5 py-0.5 hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 rounded font-semibold transition-colors disabled:opacity-30"
                           disabled={weekOffset === 0}
                         >
                           &gt;
@@ -2487,16 +2638,16 @@ export const App: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="text-[10px] text-slate-400 leading-tight">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                       Rango:{" "}
-                      <span className="font-mono text-slate-200">
+                      <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
                         {weeklyPaymentsData.mondayDate.toLocaleDateString(
                           "es-ES",
                           { day: "numeric", month: "short" },
                         )}
                       </span>{" "}
                       al{" "}
-                      <span className="font-mono text-slate-200">
+                      <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">
                         {weeklyPaymentsData.sundayDate.toLocaleDateString(
                           "es-ES",
                           { day: "numeric", month: "short" },
@@ -2504,7 +2655,7 @@ export const App: React.FC = () => {
                       </span>
                     </p>
 
-                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-800/50">
+                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 divide-y divide-slate-200 dark:divide-slate-800/50">
                       {weeklyPaymentsData.list.length > 0 ? (
                         weeklyPaymentsData.list.map((emp) => (
                           <div
@@ -2512,14 +2663,14 @@ export const App: React.FC = () => {
                             className="pt-2 flex items-center justify-between text-xs font-semibold"
                           >
                             <div>
-                              <span className="text-slate-200 font-bold block">
+                              <span className="text-slate-800 dark:text-slate-200 font-bold block">
                                 {emp.name}
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                                 {emp.hours.toFixed(1)}h × {emp.rate.toFixed(1)}€
                               </span>
                             </div>
-                            <span className="font-bold text-emerald-400 font-mono text-right">
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-right">
                               {emp.total.toFixed(2)} €
                             </span>
                           </div>
@@ -2531,7 +2682,7 @@ export const App: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-450 font-bold font-mono">
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-bold font-mono">
                       <span>Total Liquidación</span>
                       <span className="font-bold text-emerald-400 text-sm font-mono">
                         {weeklyPaymentsData.grandTotal.toFixed(2)} €
@@ -2556,16 +2707,15 @@ export const App: React.FC = () => {
                             >
                               <div className="flex items-center gap-3">
                                 <div
-                                  className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                                    isEntrada
-                                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                      : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                                  }`}
+                                  className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${isEntrada
+                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                    : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                                    }`}
                                 >
                                   {isEntrada ? "E" : "S"}
                                 </div>
                                 <div>
-                                  <span className="text-xs font-bold text-white block truncate max-w-[120px]">
+                                  <span className="text-xs font-bold text-slate-900 dark:text-white block truncate max-w-[120px]">
                                     {fic.empleados?.nombre || "Empleado"}
                                   </span>
                                   <span className="text-[9px] text-slate-500 block mt-0.5">
@@ -2573,22 +2723,31 @@ export const App: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${
-                                    isEntrada
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <span
+                                    className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border ${isEntrada
                                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                       : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                                  }`}
+                                      }`}
+                                  >
+                                    {fic.tipo.toUpperCase()}
+                                  </span>
+                                  <span className="text-[10px] text-slate-350 font-mono block mt-1">
+                                    {dateObj.toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => requestDeleteFichaje(fic)}
+                                  className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                                  title="Eliminar Fichaje"
                                 >
-                                  {fic.tipo.toUpperCase()}
-                                </span>
-                                <span className="text-[10px] text-slate-350 font-mono block mt-1">
-                                  {dateObj.toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
                               </div>
                             </div>
                           );
@@ -2607,17 +2766,53 @@ export const App: React.FC = () => {
                 /* TAB 2.3.3: Facturas y Gastos Mobile */
                 <div className="space-y-4">
                   {/* Form & OCR Scanner Mobile */}
-                  <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                      <FileText className="h-4 w-4" /> Registrar Gasto
+                      <FileText className="h-4 w-4" /> Registrar Movimiento
                     </h4>
+
+                    {/* Type Selector (Gasto vs Ingreso) */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                        Tipo de Operación
+                      </label>
+                      <div className="flex bg-slate-200 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGastoTipo("gasto");
+                            if (gastoCategoria === "Ingreso / Bonificación") setGastoCategoria("Materia Prima");
+                          }}
+                          className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "gasto"
+                            ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                            }`}
+                        >
+                          Gasto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGastoTipo("ingreso");
+                            setGastoCategoria("Ingreso / Bonificación");
+                          }}
+                          className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "ingreso"
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                            }`}
+                        >
+                          Ingreso Extra
+                        </button>
+                      </div>
+                    </div>
+
                     <form onSubmit={handleAddGasto} className="space-y-3">
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoProvMob"
-                          className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                          className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                         >
-                          Proveedor
+                          Proveedor / Origen
                         </label>
                         <input
                           id="gastoProvMob"
@@ -2625,13 +2820,13 @@ export const App: React.FC = () => {
                           value={gastoProveedor}
                           onChange={(e) => setGastoProveedor(e.target.value)}
                           placeholder="Ej. Distribuidora S.L."
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                         />
                       </div>
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoConceptMob"
-                          className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                          className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                         >
                           Concepto *
                         </label>
@@ -2642,14 +2837,14 @@ export const App: React.FC = () => {
                           value={gastoConcepto}
                           onChange={(e) => setGastoConcepto(e.target.value)}
                           placeholder="Ej. Compra de verdura"
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label
                             htmlFor="gastoImpMob"
-                            className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                            className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                           >
                             Importe (€) *
                           </label>
@@ -2662,13 +2857,13 @@ export const App: React.FC = () => {
                             value={gastoImporte}
                             onChange={(e) => setGastoImporte(e.target.value)}
                             placeholder="0.00"
-                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                           />
                         </div>
                         <div className="space-y-1">
                           <label
                             htmlFor="gastoCatMob"
-                            className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                            className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                           >
                             Categoría *
                           </label>
@@ -2678,11 +2873,13 @@ export const App: React.FC = () => {
                             onChange={(e) =>
                               setGastoCategoria(e.target.value as any)
                             }
-                            className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200"
+                            className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200"
                           >
                             <option value="Materia Prima">Materia Prima</option>
                             <option value="Alquiler">Alquiler</option>
                             <option value="Suministros">Suministros</option>
+                            <option value="Gastos de Personal">Gastos de Personal</option>
+                            <option value="Ingreso / Bonificación">Ingreso / Bonificación</option>
                             <option value="Otros">Otros</option>
                           </select>
                         </div>
@@ -2690,7 +2887,7 @@ export const App: React.FC = () => {
                       <div className="space-y-1">
                         <label
                           htmlFor="gastoFechMob"
-                          className="text-[9px] text-slate-500 font-bold uppercase tracking-wider"
+                          className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider"
                         >
                           Fecha *
                         </label>
@@ -2700,27 +2897,28 @@ export const App: React.FC = () => {
                           required
                           value={gastoFecha}
                           onChange={(e) => setGastoFecha(e.target.value)}
-                          className="w-full bg-slate-955 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-200 font-mono"
+                          className="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 font-mono"
                         />
                       </div>
                       <button
                         type="submit"
-                        className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5"
+                        className={`w-full py-2 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5 ${gastoTipo === "ingreso" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-500 hover:bg-indigo-600"
+                          }`}
                       >
-                        <Plus className="h-4 w-4" /> Guardar Gasto
+                        <Plus className="h-4 w-4" /> {gastoTipo === "ingreso" ? "Guardar Ingreso" : "Guardar Gasto"}
                       </button>
                     </form>
 
-                    <div className="border-t border-slate-800/60 pt-4 space-y-3">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                    <div className="border-t border-slate-200 dark:border-slate-800/60 pt-4 space-y-3">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         <Camera className="h-4 w-4" />
                         <span>Escanear Factura con IA</span>
                       </div>
-                      <div className="border border-dashed border-slate-800 hover:border-slate-700 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-slate-955/20 relative overflow-hidden group">
+                      <div className="border border-dashed border-slate-300 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-700 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-white/50 dark:bg-slate-950/20 relative overflow-hidden group">
                         {isScanningOCR ? (
                           <div className="space-y-2 py-2">
-                            <RefreshCw className="h-5 w-5 text-emerald-400 animate-spin mx-auto" />
-                            <p className="text-[10px] text-slate-300 font-semibold">
+                            <RefreshCw className="h-5 w-5 text-emerald-500 animate-spin mx-auto" />
+                            <p className="text-[10px] text-slate-700 dark:text-slate-300 font-semibold">
                               Procesando imagen con IA...
                             </p>
                           </div>
@@ -2729,15 +2927,15 @@ export const App: React.FC = () => {
                             onClick={handleOCRScanInvoice}
                             className="space-y-1.5 py-1"
                           >
-                            <Camera className="h-6 w-6 text-slate-500 group-hover:text-emerald-400 transition-all mx-auto" />
-                            <p className="text-[11px] font-bold text-slate-355">
+                            <Camera className="h-6 w-6 text-slate-400 group-hover:text-emerald-500 transition-all mx-auto" />
+                            <p className="text-[11px] font-bold text-slate-800 dark:text-slate-300">
                               Hacer foto o subir factura
                             </p>
                           </div>
                         )}
                       </div>
                       {ocrScanResult && (
-                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1.5">
                           <Check className="h-3.5 w-3.5 shrink-0" />
                           <span>{ocrScanResult}</span>
                         </div>
@@ -2748,25 +2946,36 @@ export const App: React.FC = () => {
                   {/* Expenses History Mobile */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Listado de Gastos ({gastosList.length})
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Movimientos ({gastosList.length})
                       </h4>
-                      <span className="text-[11px] font-bold text-rose-400 font-mono">
-                        Total:{" "}
-                        {gastosList
-                          .reduce((acc, g) => acc + g.importe, 0)
-                          .toFixed(1)}{" "}
-                        €
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-rose-500 dark:text-rose-400 font-mono">
+                          Gastos:{" "}
+                          {gastosList
+                            .filter((g) => g.tipo !== "ingreso" && g.categoria !== "Ingreso / Bonificación")
+                            .reduce((acc, g) => acc + g.importe, 0)
+                            .toFixed(1)}{" "}
+                          €
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                          Ingresos:{" "}
+                          {gastosList
+                            .filter((g) => g.tipo === "ingreso" || g.categoria === "Ingreso / Bonificación")
+                            .reduce((acc, g) => acc + g.importe, 0)
+                            .toFixed(1)}{" "}
+                          €
+                        </span>
+                      </div>
                     </div>
 
                     {isGastosTableMissing && (
-                      <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] space-y-1.5">
+                      <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] space-y-1.5">
                         <div className="flex items-start gap-1.5 font-bold">
                           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                           <span>Respaldo en Local Activo (Tabla faltante)</span>
                         </div>
-                        <p className="text-slate-450 leading-tight">
+                        <p className="text-slate-500 dark:text-slate-450 leading-tight">
                           Los datos se guardan en el navegador. Crea la tabla{" "}
                           <code>gastos</code> en Supabase para habilitar la
                           nube.
@@ -2776,41 +2985,50 @@ export const App: React.FC = () => {
 
                     <div className="space-y-2.5">
                       {gastosList.length > 0 ? (
-                        gastosList.map((g) => (
-                          <div
-                            key={g.id}
-                            className="glass-panel p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="truncate flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-white font-bold truncate">
-                                  {g.proveedor || "Sin Proveedor"}
+                        gastosList.map((g) => {
+                          const isIngreso = g.tipo === "ingreso" || g.categoria === "Ingreso / Bonificación";
+                          return (
+                            <div
+                              key={g.id}
+                              className="glass-panel p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="truncate flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-900 dark:text-white font-bold truncate">
+                                    {g.proveedor || "Sin Proveedor"}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded border text-[8px] font-bold uppercase shrink-0 ${isIngreso
+                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                    : g.categoria === "Gastos de Personal"
+                                      ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                                      : "bg-slate-950 text-slate-400 border-slate-850"
+                                    }`}>
+                                    {g.categoria}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                                  {g.concepto}
                                 </span>
-                                <span className="px-1.5 py-0.2 rounded bg-slate-950 border border-slate-850 text-[8px] font-bold text-slate-400 uppercase shrink-0">
-                                  {g.categoria}
+                                <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">
+                                  {g.fecha}
                                 </span>
                               </div>
-                              <span className="text-[10px] text-slate-400 block truncate mt-0.5">
-                                {g.concepto}
-                              </span>
-                              <span className="text-[9px] text-slate-500 font-mono mt-0.5 block">
-                                {g.fecha}
-                              </span>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className={`font-bold font-mono ${isIngreso ? "text-emerald-400" : "text-rose-455"}`}>
+                                  {isIngreso ? "+" : "-"}{g.importe.toFixed(2)} €
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => requestDeleteGasto(g)}
+                                  className="text-slate-500 hover:text-rose-400 transition-colors p-1 cursor-pointer"
+                                  title="Eliminar Registro"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="font-bold text-rose-455 font-mono">
-                                {g.importe.toFixed(2)} €
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteGasto(g.id)}
-                                className="text-slate-500 hover:text-rose-400 transition-colors p-1"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="text-center py-8 text-slate-500 text-xs">
                           No hay gastos guardados.
@@ -2832,60 +3050,54 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setMobileTab("summary")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
-            mobileTab === "summary"
-              ? "text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${mobileTab === "summary"
+            ? "text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <Receipt className="h-5 w-5" />
           <span className="text-[9px] font-semibold">Resumen</span>
           <span
-            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${
-              mobileTab === "summary"
-                ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
-                : "opacity-0 scale-50"
-            }`}
+            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${mobileTab === "summary"
+              ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
+              : "opacity-0 scale-50"
+              }`}
           />
         </button>
 
         <button
           type="button"
           onClick={() => setMobileTab("charts")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
-            mobileTab === "charts"
-              ? "text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${mobileTab === "charts"
+            ? "text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <RefreshCw className="h-5 w-5" />
           <span className="text-[9px] font-semibold">Gráficos</span>
           <span
-            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${
-              mobileTab === "charts"
-                ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
-                : "opacity-0 scale-50"
-            }`}
+            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${mobileTab === "charts"
+              ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
+              : "opacity-0 scale-50"
+              }`}
           />
         </button>
 
         <button
           type="button"
           onClick={() => setMobileTab("admin")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
-            mobileTab === "admin"
-              ? "text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${mobileTab === "admin"
+            ? "text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <Layers className="h-5 w-5" />
           <span className="text-[9px] font-semibold">Gestión</span>
           <span
-            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${
-              mobileTab === "admin"
-                ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
-                : "opacity-0 scale-50"
-            }`}
+            className={`h-1 w-1 rounded-full bg-indigo-400 transition-all duration-300 ${mobileTab === "admin"
+              ? "opacity-100 scale-100 shadow-[0_0_8px_rgba(99,102,241,0.8)]"
+              : "opacity-0 scale-50"
+              }`}
           />
         </button>
 
@@ -2920,6 +3132,48 @@ export const App: React.FC = () => {
       />
 
       <InstallPrompt />
+
+      {/* Confirmation Modal for Deletions */}
+      {deleteModalState?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 max-w-md w-full p-6 rounded-2xl border border-slate-200 dark:border-rose-500/30 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-start gap-3">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 shrink-0 mt-0.5">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white font-heading">
+                  {deleteModalState.title}
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                  ¿Confirmas que deseas eliminar este registro permanentemente?
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-800 dark:text-slate-200">
+              {deleteModalState.itemDetails}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalState(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 !text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/25 cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Confirmar Eliminación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

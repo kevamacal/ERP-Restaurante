@@ -56,12 +56,12 @@ export const AdminPinLock: React.FC<AdminPinLockProps> = ({ selectedLocalId, onS
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none" />
       
       <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-slate-800/80 flex flex-col items-center relative shadow-2xl">
-        <div className={`p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-6 transition-all ${error ? 'animate-shake text-rose-450 bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : ''}`}>
+        <div className={`p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4 transition-all ${error ? 'animate-shake text-rose-450 bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : ''}`}>
           <Lock className="h-8 w-8" />
         </div>
 
         <h2 className="text-xl font-bold font-heading mb-1 text-center">Acceso Administrador</h2>
-        <p className="text-xs text-slate-400 mb-8 text-center">Introduce el PIN de administración para ver la facturación.</p>
+        <p className="text-xs text-slate-400 mb-6 text-center">Introduce el PIN de administración de tu local para acceder al panel de control.</p>
 
         {/* PIN Indicators */}
         <div className={`flex gap-4 mb-10 ${error ? 'animate-shake' : ''}`}>

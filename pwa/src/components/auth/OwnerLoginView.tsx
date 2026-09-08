@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
+  Zap,
 } from "lucide-react";
 
 interface OwnerLoginViewProps {
@@ -36,6 +37,21 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
     authError,
     setAuthError,
   } = useAuth();
+
+  const handleDemoLogin = async () => {
+    setSuccessMsg(null);
+    setAuthError(null);
+    setEmail("demo@erprestaurante.app");
+    setPassword("DemoPassword123!");
+    const ok = await signInWithEmail("demo@erprestaurante.app", "DemoPassword123!");
+    if (ok) {
+      setSuccessMsg("¡Accediendo al entorno de demostración!");
+      sessionStorage.setItem("admin_authenticated", "true");
+      setTimeout(() => {
+        onLoginSuccess();
+      }, 600);
+    }
+  };
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +116,35 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
               ? "Inicia sesión con tu cuenta para permitir el fichaje y acceder a la administración"
               : "Crea tu cuenta de empresa para empezar a gestionar tus restaurantes"}
           </p>
+        </div>
+
+        {/* Demo Sandbox Banner & 1-Click Access */}
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-indigo-950/70 via-slate-900 to-slate-900 border border-indigo-500/30 text-left space-y-2.5 shadow-xl shadow-indigo-950/40 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-xs">
+              <Zap className="h-4 w-4 text-amber-400 fill-amber-400" />
+              <span>Entorno Demo / Sandbox</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-semibold">
+              Acceso Inmediato
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-300 leading-snug">
+            Prueba la plataforma completa con datos pre-cargados de ventas, gráficos, gastos y personal.
+          </p>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            className="w-full py-2.5 bg-gradient-to-r from-amber-500 via-indigo-600 to-indigo-700 hover:from-amber-400 hover:to-indigo-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-indigo-500/25 transition-all cursor-pointer transform active:scale-[0.98]"
+          >
+            <Zap className="h-4 w-4 fill-white" />
+            <span>Probar versión Demo (1-Click)</span>
+          </button>
+          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] text-slate-400 gap-1">
+            <span>Email: <code className="text-indigo-300 font-mono">demo@erprestaurante.app</code></span>
+            <span>Pass: <code className="text-indigo-300 font-mono">DemoPassword123!</code></span>
+          </div>
         </div>
 
         {/* Mode Tabs */}

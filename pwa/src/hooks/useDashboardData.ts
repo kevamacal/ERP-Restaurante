@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { getSupabase } from "../supabaseClient";
 import type { Local, VentasResumen, VentaHora } from "../types";
 
-export function useDashboardData(isAdminAuthenticated: boolean) {
+export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: string) {
   const [selectedLocal, setSelectedLocal] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(false);
   const [localesList, setLocalesList] = useState<Local[]>([]);
@@ -14,20 +14,42 @@ export function useDashboardData(isAdminAuthenticated: boolean) {
     if (!supabase) return;
 
     try {
-      const { data, error } = await supabase
+      let activeEmpresaId = empresaId;
+      if (!activeEmpresaId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (userId) {
+          const { data: empData } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("owner_user_id", userId)
+            .maybeSingle();
+          if (empData?.id) activeEmpresaId = empData.id;
+        }
+      }
+
+      let query = supabase
         .from("locales")
-        .select("id, nombre, ip_publica")
+        .select("id, nombre, ip_publica, empresa_id")
         .order("id");
+
+      if (activeEmpresaId) {
+        query = query.eq("empresa_id", activeEmpresaId);
+      }
+
+      const { data, error } = await query;
       if (!error && data && data.length > 0) {
         setLocalesList([
           { id: "all", nombre: "Todos los Locales" },
           ...data,
         ]);
+      } else if (!error && data && data.length === 0) {
+        setLocalesList([]);
       }
     } catch (e) {
       console.error("Error cargando locales de Supabase:", e);
     }
-  }, []);
+  }, [empresaId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -38,10 +60,28 @@ export function useDashboardData(isAdminAuthenticated: boolean) {
     }
 
     try {
+      let activeEmpresaId = empresaId;
+      if (!activeEmpresaId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (userId) {
+          const { data: empData } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("owner_user_id", userId)
+            .maybeSingle();
+          if (empData?.id) activeEmpresaId = empData.id;
+        }
+      }
+
       let queryRes = supabase
         .from("ventas_resumen_diario")
         .select("*")
         .order("fecha", { ascending: false });
+
+      if (activeEmpresaId) {
+        queryRes = queryRes.eq("empresa_id", activeEmpresaId);
+      }
 
       if (selectedLocal !== "all") {
         queryRes = queryRes.eq("local_id", selectedLocal);
@@ -59,6 +99,10 @@ export function useDashboardData(isAdminAuthenticated: boolean) {
             .select("*")
             .eq("fecha", latestDate)
             .order("hora", { ascending: true });
+
+          if (activeEmpresaId) {
+            queryHora = queryHora.eq("empresa_id", activeEmpresaId);
+          }
 
           if (selectedLocal !== "all") {
             queryHora = queryHora.eq("local_id", selectedLocal);
@@ -78,7 +122,7 @@ export function useDashboardData(isAdminAuthenticated: boolean) {
       console.error("Error cargando ventas de Supabase:", e);
     }
     setLoading(false);
-  }, [selectedLocal]);
+  }, [selectedLocal, empresaId]);
 
   useEffect(() => {
     fetchLocales();

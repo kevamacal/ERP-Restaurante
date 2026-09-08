@@ -6,7 +6,6 @@ import { HistoricoSection } from "./components/HistoricoSection";
 import { PeriodSummariesSection } from "./components/PeriodSummariesSection";
 import { ClockInView } from "./components/ClockInView";
 import { AdminPinLock } from "./components/AdminPinLock";
-import { SettingsModal } from "./components/SettingsModal";
 import { AuthModal } from "./components/auth/AuthModal";
 import { OwnerLoginView } from "./components/auth/OwnerLoginView";
 import { InstallPrompt } from "./components/InstallPrompt";
@@ -65,33 +64,30 @@ export const App: React.FC = () => {
   );
 
   // Settings states
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [foodCostPct, setFoodCostPct] = useState<number>(() => {
-    const val = localStorage.getItem("app_food_cost_pct");
-    return val ? Number(val) : 30;
-  });
-  const [hourlyWage, setHourlyWage] = useState<number>(() => {
-    const val = localStorage.getItem("app_hourly_wage");
-    return val ? Number(val) : 10;
-  });
+  const foodCostPct = 30;
+  const hourlyWage = 10;
 
   // Custom hooks integration
-  const dashboardData = useDashboardData(isAdminAuthenticated);
+  const empresaId = auth.empresa?.id;
+  const dashboardData = useDashboardData(isAdminAuthenticated, empresaId);
   const employeeMgmt = useEmployeeManagement(
     dashboardData.selectedLocal,
     isAdminAuthenticated,
     activeTab,
-    hourlyWage
+    hourlyWage,
+    empresaId
   );
   const fichajesMgmt = useFichajesManagement(
     dashboardData.selectedLocal,
     isAdminAuthenticated,
     activeTab,
-    dashboardData.fetchData
+    dashboardData.fetchData,
+    empresaId
   );
   const gastosMgmt = useGastosManagement(
     dashboardData.selectedLocal,
-    isAdminAuthenticated
+    isAdminAuthenticated,
+    empresaId
   );
   const shiftMetrics = useShiftMetrics(
     fichajesMgmt.fichajesAll,
@@ -202,16 +198,6 @@ export const App: React.FC = () => {
     setDeleteModalState(null);
   };
 
-  const handleSettingsSaved = () => {
-    const valFood = localStorage.getItem("app_food_cost_pct");
-    if (valFood) setFoodCostPct(Number(valFood));
-    const valWage = localStorage.getItem("app_hourly_wage");
-    if (valWage) setHourlyWage(Number(valWage));
-
-    dashboardData.fetchData();
-    gastosMgmt.fetchGastos();
-  };
-
   if (!isDeviceAuthorized && !auth.user) {
     return (
       <OwnerLoginView
@@ -277,7 +263,6 @@ export const App: React.FC = () => {
         onSelectLocal={dashboardData.setSelectedLocal}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onOpenSettings={() => setIsSettingsOpen(true)}
         user={auth.user}
         empresa={auth.empresa}
         onSignOut={requestSignOut}
@@ -521,13 +506,6 @@ export const App: React.FC = () => {
           <span className="text-[10px]">Gastos</span>
         </button>
       </div>
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSaved={handleSettingsSaved}
-      />
 
       {/* Owner Auth Modal (SaaS Login / Signup) */}
       <AuthModal

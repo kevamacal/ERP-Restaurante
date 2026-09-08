@@ -5,7 +5,8 @@ import { analyzeInvoiceWithGemini } from "../geminiOCR";
 
 export function useGastosManagement(
   selectedLocal: string,
-  isAdminAuthenticated: boolean
+  isAdminAuthenticated: boolean,
+  empresaId?: string
 ) {
   const [gastosList, setGastosList] = useState<Gasto[]>(() => {
     const val = localStorage.getItem("app_gastos_fallback");
@@ -33,10 +34,28 @@ export function useGastosManagement(
     if (!supabase) return;
 
     try {
+      let activeEmpresaId = empresaId;
+      if (!activeEmpresaId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (userId) {
+          const { data: empData } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("owner_user_id", userId)
+            .maybeSingle();
+          if (empData?.id) activeEmpresaId = empData.id;
+        }
+      }
+
       let query = supabase
         .from("gastos")
         .select("*")
         .order("fecha", { ascending: false });
+
+      if (activeEmpresaId) {
+        query = query.eq("empresa_id", activeEmpresaId);
+      }
       if (selectedLocal !== "all") {
         query = query.eq("local_id", selectedLocal);
       }
@@ -58,7 +77,7 @@ export function useGastosManagement(
       console.error("Error in fetchGastos:", e);
       setIsGastosTableMissing(true);
     }
-  }, [selectedLocal]);
+  }, [selectedLocal, empresaId]);
 
   useEffect(() => {
     if (isAdminAuthenticated) {

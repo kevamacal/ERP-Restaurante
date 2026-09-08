@@ -1,5 +1,5 @@
 import React from 'react';
-import { Store, Sun, Moon, Settings, LogOut } from 'lucide-react';
+import { Store, Sun, Moon, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   selectedLocal: string;
@@ -7,7 +7,6 @@ interface HeaderProps {
   locales: { id: string; nombre: string }[];
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
-  onOpenSettings: () => void;
   user?: any;
   empresa?: any;
   onSignOut?: () => void;
@@ -19,7 +18,6 @@ export const Header: React.FC<HeaderProps> = ({
   locales,
   theme,
   onToggleTheme,
-  onOpenSettings,
   user,
   empresa,
   onSignOut,
@@ -63,14 +61,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
             </button>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="p-2 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/30 cursor-pointer"
-              title="Configuración"
-            >
-              <Settings className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-            </button>
           </div>
         </div>
 
@@ -113,15 +103,6 @@ export const Header: React.FC<HeaderProps> = ({
               title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
-              title="Configuración"
-            >
-              <Settings className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             </button>
           </div>
         </div>

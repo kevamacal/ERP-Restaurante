@@ -6,7 +6,8 @@ export function useEmployeeManagement(
   selectedLocal: string,
   isAdminAuthenticated: boolean,
   activeTab: string,
-  hourlyWage: number
+  hourlyWage: number,
+  empresaId?: string
 ) {
   const [adminEmployees, setAdminEmployees] = useState<Empleado[]>([]);
   const [newEmpName, setNewEmpName] = useState<string>("");
@@ -17,7 +18,24 @@ export function useEmployeeManagement(
     if (!supabase) return;
 
     try {
+      let activeEmpresaId = empresaId;
+      if (!activeEmpresaId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (userId) {
+          const { data: empData } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("owner_user_id", userId)
+            .maybeSingle();
+          if (empData?.id) activeEmpresaId = empData.id;
+        }
+      }
+
       let queryEmp = supabase.from("empleados").select("*").order("nombre");
+      if (activeEmpresaId) {
+        queryEmp = queryEmp.eq("empresa_id", activeEmpresaId);
+      }
       if (selectedLocal !== "all") {
         queryEmp = queryEmp.eq("local_id", selectedLocal);
       }
@@ -26,7 +44,7 @@ export function useEmployeeManagement(
     } catch (e) {
       console.error("Error fetching employees:", e);
     }
-  }, [selectedLocal]);
+  }, [selectedLocal, empresaId]);
 
   useEffect(() => {
     if (isAdminAuthenticated && (activeTab === "horario" || activeTab === "sales")) {
@@ -47,6 +65,7 @@ export function useEmployeeManagement(
           nombre: newEmpName.trim(),
           pin_empleado: newEmpPin || "0000",
           activo: true,
+          empresa_id: empresaId,
         },
       ]);
       if (!error) {

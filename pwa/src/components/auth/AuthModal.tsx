@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { X, Lock, Mail, Building2, AlertCircle, CheckCircle2, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { X, Lock, Mail, Building2, AlertCircle, CheckCircle2, ShieldCheck, Eye, EyeOff, Zap } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -30,6 +30,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   } = useAuth();
 
   if (!isOpen) return null;
+
+  const handleDemoLogin = async () => {
+    setSuccessMsg(null);
+    setAuthError(null);
+    setEmail("demo@erprestaurante.app");
+    setPassword("DemoPassword123!");
+    const ok = await signInWithEmail("demo@erprestaurante.app", "DemoPassword123!");
+    if (ok) {
+      setSuccessMsg("¡Accediendo al entorno demo!");
+      sessionStorage.setItem("admin_authenticated", "true");
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 600);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +105,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               ? "Accede a la gestión multi-tenant de tus restaurantes"
               : "Crea tu cuenta de restaurante para gestionar locales y empleados"}
           </p>
+        </div>
+
+        {/* Demo Sandbox Quick Access */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-b from-indigo-950/70 via-slate-900 to-slate-900 border border-indigo-500/30 text-left space-y-2 shadow-xl shadow-indigo-950/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-xs">
+              <Zap className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+              <span>Entorno Demo / Sandbox</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-semibold">
+              Acceso 1-Click
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            className="w-full py-2 bg-gradient-to-r from-amber-500 via-indigo-600 to-indigo-700 hover:from-amber-400 hover:to-indigo-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-indigo-500/25 transition-all cursor-pointer transform active:scale-[0.98]"
+          >
+            <Zap className="h-4 w-4 fill-white" />
+            <span>Entrar como Demo</span>
+          </button>
+          <div className="pt-1.5 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <span>demo@erprestaurante.app</span>
+            <span className="text-indigo-400">PIN Admin: 1234</span>
+          </div>
         </div>
 
         {/* Mode Selector Tabs */}

@@ -9,7 +9,8 @@ export function useFichajesManagement(
   selectedLocal: string,
   isAdminAuthenticated: boolean,
   activeTab: string,
-  fetchDataTrigger?: () => void
+  fetchDataTrigger?: () => void,
+  empresaId?: string
 ) {
   const [fichajesList, setFichajesList] = useState<any[]>([]);
   const [fichajesAll, setFichajesAll] = useState<any[]>([]);
@@ -26,9 +27,27 @@ export function useFichajesManagement(
     if (!supabase) return;
 
     try {
+      let activeEmpresaId = empresaId;
+      if (!activeEmpresaId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (userId) {
+          const { data: empData } = await supabase
+            .from("empresas")
+            .select("id")
+            .eq("owner_user_id", userId)
+            .maybeSingle();
+          if (empData?.id) activeEmpresaId = empData.id;
+        }
+      }
+
       let queryFic = supabase
         .from("fichajes")
         .select("*, empleados!inner(nombre, local_id)");
+
+      if (activeEmpresaId) {
+        queryFic = queryFic.eq("empresa_id", activeEmpresaId);
+      }
       if (selectedLocal !== "all") {
         queryFic = queryFic.eq("empleados.local_id", selectedLocal);
       }
@@ -48,7 +67,7 @@ export function useFichajesManagement(
     } catch (e) {
       console.error("Error fetching fichajes data:", e);
     }
-  }, [selectedLocal]);
+  }, [selectedLocal, empresaId]);
 
   useEffect(() => {
     if (isAdminAuthenticated && (activeTab === "horario" || activeTab === "sales")) {

@@ -1,24 +1,28 @@
 import React from 'react';
-import { Store, RefreshCw, Sun, Moon, Settings } from 'lucide-react';
+import { Store, Sun, Moon, Settings, User, LogOut, Lock } from 'lucide-react';
 
 interface HeaderProps {
-  onRefresh: () => void;
   selectedLocal: string;
   onSelectLocal: (id: string) => void;
   locales: { id: string; nombre: string }[];
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onOpenSettings: () => void;
+  user?: any;
+  empresa?: any;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  onRefresh,
   selectedLocal,
   onSelectLocal,
   locales,
   theme,
   onToggleTheme,
-  onOpenSettings
+  onOpenSettings,
+  user,
+  empresa,
+  onSignOut,
 }) => {
   return (
     <header className="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-4 py-3 sm:px-6 mb-6">
@@ -33,9 +37,11 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none font-heading flex items-center gap-2">
-                TPV Control <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">v1.0</span>
+                TPV Control
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Monitoreo de Facturación Multi-Local</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {empresa?.nombre ? `Empresa: ${empresa.nombre}` : 'Monitoreo Multi-Local & Multitenant'}
+              </p>
             </div>
           </div>
 
@@ -43,11 +49,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex sm:hidden items-center gap-1.5">
             <button
               type="button"
-              onClick={onRefresh}
-              className="p-2 rounded-lg bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/30 cursor-pointer"
-              title="Actualizar datos"
+              onClick={onSignOut}
+              className="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer"
+              title="Cerrar Sesión y Salir"
             >
-              <RefreshCw className="h-4 w-4" />
+              <LogOut className="h-4 w-4" />
             </button>
             <button
               type="button"
@@ -78,11 +84,10 @@ export const Header: React.FC<HeaderProps> = ({
                   key={loc.id}
                   type="button"
                   onClick={() => onSelectLocal(loc.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/50'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${isSelected
+                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/50'
+                    }`}
                 >
                   {loc.nombre}
                 </button>
@@ -93,20 +98,21 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="hidden sm:flex items-center gap-2">
             <button
               type="button"
+              onClick={onSignOut}
+              className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Cerrar Sesión y Salir"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>{user?.email ? user.email.split('@')[0] : 'Cerrar Sesión'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onToggleTheme}
               className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
               title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-            </button>
-
-            <button
-              type="button"
-              onClick={onRefresh}
-              className="p-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors border border-slate-300 dark:border-slate-700/50 cursor-pointer"
-              title="Actualizar datos"
-            >
-              <RefreshCw className="h-4 w-4" />
             </button>
 
             <button
@@ -123,3 +129,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

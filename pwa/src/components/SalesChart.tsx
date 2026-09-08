@@ -76,9 +76,6 @@ export const SalesChart: React.FC<SalesChartProps> = ({
               Distribución de Ventas por Hora
             </h3>
           </div>
-          <span className="text-xs text-slate-600 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
-            Intradía
-          </span>
         </div>
 
         <div className="h-52 sm:h-[320px] w-full">

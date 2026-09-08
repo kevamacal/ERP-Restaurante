@@ -7,6 +7,8 @@ import { PeriodSummariesSection } from "./components/PeriodSummariesSection";
 import { ClockInView } from "./components/ClockInView";
 import { AdminPinLock } from "./components/AdminPinLock";
 import { SettingsModal } from "./components/SettingsModal";
+import { AuthModal } from "./components/auth/AuthModal";
+import { OwnerLoginView } from "./components/auth/OwnerLoginView";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { ConfirmDeleteModal, type DeleteModalState } from "./components/ConfirmDeleteModal";
 import { HorarioAdminSection } from "./components/HorarioAdminSection";
@@ -17,6 +19,7 @@ import { useEmployeeManagement } from "./hooks/useEmployeeManagement";
 import { useFichajesManagement } from "./hooks/useFichajesManagement";
 import { useGastosManagement } from "./hooks/useGastosManagement";
 import { useShiftMetrics } from "./hooks/useShiftMetrics";
+import { useAuth } from "./hooks/useAuth";
 
 import type { Gasto } from "./types";
 import {
@@ -25,7 +28,6 @@ import {
   Users,
   Clock,
   Calendar,
-  RefreshCw,
   Layers,
   FileText,
   Coins,
@@ -39,6 +41,23 @@ export const App: React.FC = () => {
   );
   const [activeTab, setActiveTab] = useState<"sales" | "horario" | "gastos">("sales");
   const [mobileTab, setMobileTab] = useState<"summary" | "charts" | "admin">("summary");
+
+  // Auth & Terminal integration
+  const auth = useAuth();
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+  const [isDeviceAuthorized, setIsDeviceAuthorized] = useState<boolean>(() => {
+    return (
+      sessionStorage.getItem("app_terminal_authorized") === "true" ||
+      sessionStorage.getItem("admin_authenticated") === "true"
+    );
+  });
+
+  useEffect(() => {
+    if (auth.user) {
+      setIsDeviceAuthorized(true);
+      sessionStorage.setItem("app_terminal_authorized", "true");
+    }
+  }, [auth.user]);
 
   // Theme state
   const [theme, setTheme] = useState<"dark" | "light">(
@@ -121,7 +140,7 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  // Request deletion confirmation helpers
+  // Request deletion / confirmation helpers
   const requestDeleteGasto = (gasto: Gasto) => {
     const isIngreso =
       gasto.tipo === "ingreso" || gasto.categoria === "Ingreso / Bonificación";
@@ -151,14 +170,33 @@ export const App: React.FC = () => {
     });
   };
 
+  const requestSignOut = () => {
+    setDeleteModalState({
+      isOpen: true,
+      type: "logout",
+      title: "Cerrar Sesión",
+      subtitle: "¿Estás seguro de que deseas salir del panel de administración?",
+      itemDetails: "Se cerrará la sesión actual y se requerirá autenticación para volver a acceder.",
+      confirmText: "Cerrar Sesión",
+    });
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteModalState) return;
     const { type, id } = deleteModalState;
 
-    if (type === "gasto" || type === "ingreso") {
-      await gastosMgmt.handleDeleteGasto(id);
-    } else if (type === "fichaje") {
-      await fichajesMgmt.handleDeleteFichaje(id);
+    if (type === "logout") {
+      setDeleteModalState(null);
+      await handleFullSignOut();
+      return;
+    }
+
+    if (id) {
+      if (type === "gasto" || type === "ingreso") {
+        await gastosMgmt.handleDeleteGasto(id);
+      } else if (type === "fichaje") {
+        await fichajesMgmt.handleDeleteFichaje(id);
+      }
     }
 
     setDeleteModalState(null);
@@ -173,6 +211,19 @@ export const App: React.FC = () => {
     dashboardData.fetchData();
     gastosMgmt.fetchGastos();
   };
+
+  if (!isDeviceAuthorized && !auth.user) {
+    return (
+      <OwnerLoginView
+        locales={dashboardData.localesList}
+        onLoginSuccess={() => {
+          setIsDeviceAuthorized(true);
+          sessionStorage.setItem("app_terminal_authorized", "true");
+          setView("fichar");
+        }}
+      />
+    );
+  }
 
   if (view === "fichar") {
     return (
@@ -191,6 +242,16 @@ export const App: React.FC = () => {
     dashboardData.selectedLocal === "all"
       ? firstRealLocal?.id || "local_1"
       : dashboardData.selectedLocal;
+
+  const handleFullSignOut = async () => {
+    await auth.signOut();
+    sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("app_terminal_authorized");
+    setIsAdminAuthenticated(false);
+    setIsDeviceAuthorized(false);
+    window.location.hash = "";
+    setView("fichar");
+  };
 
   if (!isAdminAuthenticated) {
     return (
@@ -216,22 +277,24 @@ export const App: React.FC = () => {
         onSelectLocal={dashboardData.setSelectedLocal}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onRefresh={dashboardData.fetchData}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        user={auth.user}
+        empresa={auth.empresa}
+        onSignOut={requestSignOut}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-        {/* Desktop Tab Selector Header */}
-        <div className="hidden md:flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 pt-2">
-          <div className="flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-2xl gap-1">
+        {/* Tab Selector & Status Header */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 pt-2 gap-3">
+          {/* Desktop Tab Selector Header */}
+          <div className="hidden md:flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-2xl gap-1">
             <button
               type="button"
               onClick={() => setActiveTab("sales")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "sales"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "sales"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
             >
               <Layers className="h-4 w-4" /> Ventas y Resumen
             </button>
@@ -239,11 +302,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("horario")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "horario"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "horario"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
             >
               <Clock className="h-4 w-4" /> Fichajes y Personal
             </button>
@@ -251,40 +313,41 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("gastos")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "gastos"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "gastos"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
             >
               <FileText className="h-4 w-4" /> Gastos y Facturas
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
-              <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+          {/* Status Pills (Visible on Mobile & Desktop) */}
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full md:w-auto overflow-x-auto">
+            {shiftMetrics.kpis.ultimaActualizacion && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                Última act:{" "}
+                <span className="text-slate-900 dark:text-slate-100 font-bold font-mono">
+                  {new Date(shiftMetrics.kpis.ultimaActualizacion).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </span>
+            )}
+
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+              <Calendar className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
               {dashboardData.resumenData[0]?.fecha || "Sin ventas cargadas"}
             </span>
-
-            <button
-              type="button"
-              onClick={dashboardData.fetchData}
-              disabled={dashboardData.loading}
-              className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${dashboardData.loading ? "animate-spin" : ""}`}
-              />
-              Sincronizar
-            </button>
           </div>
         </div>
 
         {/* TAB 1: Ventas y Resumen */}
         {activeTab === "sales" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 ${mobileTab === "summary" ? "block" : "hidden md:block"}`}>
               <KPICard
                 title="Total Facturado"
                 value={`${shiftMetrics.kpis.totalFacturado.toFixed(2)} €`}
@@ -299,7 +362,6 @@ export const App: React.FC = () => {
                 subtitle={`Ticket medio: ${shiftMetrics.kpis.ticketMedio.toFixed(2)} €`}
                 icon={Receipt}
                 color="indigo"
-                badgeText="Operaciones"
               />
 
               <KPICard
@@ -337,7 +399,7 @@ export const App: React.FC = () => {
               />
             </div>
 
-            <div className={mobileTab === "summary" ? "block" : "hidden md:block"}>
+            <div className={mobileTab === "charts" ? "block" : "hidden md:block"}>
               <HistoricoSection
                 semanal={shiftMetrics.historico.semanal}
                 mensual={shiftMetrics.historico.mensual}
@@ -411,11 +473,10 @@ export const App: React.FC = () => {
             setMobileTab("summary");
             setActiveTab("sales");
           }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === "sales" && mobileTab === "summary"
-              ? "bg-indigo-500/20 text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "summary"
+            ? "bg-indigo-500/20 text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <Layers className="h-4 w-4" />
           <span className="text-[10px]">Ventas</span>
@@ -427,11 +488,10 @@ export const App: React.FC = () => {
             setMobileTab("charts");
             setActiveTab("sales");
           }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === "sales" && mobileTab === "charts"
-              ? "bg-indigo-500/20 text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "charts"
+            ? "bg-indigo-500/20 text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <Coins className="h-4 w-4" />
           <span className="text-[10px]">Resumen</span>
@@ -440,11 +500,10 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab("horario")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === "horario"
-              ? "bg-indigo-500/20 text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "horario"
+            ? "bg-indigo-500/20 text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <Clock className="h-4 w-4" />
           <span className="text-[10px]">Fichajes</span>
@@ -453,11 +512,10 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab("gastos")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === "gastos"
-              ? "bg-indigo-500/20 text-indigo-400 font-bold"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
+          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "gastos"
+            ? "bg-indigo-500/20 text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
         >
           <FileText className="h-4 w-4" />
           <span className="text-[10px]">Gastos</span>
@@ -469,6 +527,15 @@ export const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onSaved={handleSettingsSaved}
+      />
+
+      {/* Owner Auth Modal (SaaS Login / Signup) */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={() => {
+          setIsAdminAuthenticated(true);
+        }}
       />
 
       {/* Delete Confirmation Modal */}

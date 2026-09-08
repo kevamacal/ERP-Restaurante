@@ -11,7 +11,7 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
-  onSaved
+  onSaved,
 }) => {
   const [foodCostPct, setFoodCostPct] = useState(localStorage.getItem('app_food_cost_pct') || '30');
   const [hourlyWage, setHourlyWage] = useState(localStorage.getItem('app_hourly_wage') || '10');
@@ -62,10 +62,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
 
         <h2 className="text-xl font-bold text-white font-heading mb-1">
-          Configuración de Costes
+          Configuración de Costes y SaaS
         </h2>
         <p className="text-xs text-slate-400 mb-6">
-          Ajusta los porcentajes de coste de materia prima y coste de personal para el cálculo de tus métricas financieras.
+          Ajusta los parámetros de coste operativo para tus métricas de rentabilidad.
         </p>
 
         {status.msg && (
@@ -82,7 +82,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="border-b border-slate-800 pb-3 mb-2">
+          <div className="border-b border-slate-800 pb-3 mb-2 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
               Parámetros de Costes y Métricas
             </span>

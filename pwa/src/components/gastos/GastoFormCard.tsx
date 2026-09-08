@@ -64,11 +64,10 @@ export const GastoFormCard: React.FC<GastoFormCardProps> = ({
                   if (gastoCategoria === "Ingreso / Bonificación")
                     setGastoCategoria("Materia Prima");
                 }}
-                className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                  gastoTipo === "gasto"
+                className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "gasto"
                     ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                }`}
+                  }`}
               >
                 Gasto / Factura
               </button>
@@ -78,11 +77,10 @@ export const GastoFormCard: React.FC<GastoFormCardProps> = ({
                   setGastoTipo("ingreso");
                   setGastoCategoria("Ingreso / Bonificación");
                 }}
-                className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-                  gastoTipo === "ingreso"
+                className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${gastoTipo === "ingreso"
                     ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                }`}
+                  }`}
               >
                 Ingreso Extra
               </button>
@@ -193,11 +191,10 @@ export const GastoFormCard: React.FC<GastoFormCardProps> = ({
 
             <button
               type="submit"
-              className={`w-full py-2 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5 ${
-                gastoTipo === "ingreso"
+              className={`w-full py-2 disabled:opacity-50 text-xs font-bold rounded-xl transition-all cursor-pointer text-white flex items-center justify-center gap-1.5 ${gastoTipo === "ingreso"
                   ? "bg-emerald-600 hover:bg-emerald-700"
                   : "bg-indigo-500 hover:bg-indigo-600"
-              }`}
+                }`}
             >
               <Plus className="h-4 w-4" />{" "}
               {gastoTipo === "ingreso"
@@ -247,11 +244,10 @@ export const GastoFormCard: React.FC<GastoFormCardProps> = ({
 
           {ocrScanResult && (
             <div
-              className={`p-3 rounded-xl border text-xs leading-relaxed flex items-start gap-2 ${
-                ocrScanResult.startsWith("✓")
+              className={`p-3 rounded-xl border text-xs leading-relaxed flex items-start gap-2 ${ocrScanResult.startsWith("✓")
                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
                   : "bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400"
-              }`}
+                }`}
             >
               {ocrScanResult.startsWith("✓") ? (
                 <Check className="h-4 w-4 shrink-0 mt-0.5" />

@@ -3,6 +3,7 @@ export interface Empresa {
   nombre: string;
   owner_user_id?: string;
   plan_subscripcion?: 'free' | 'pro' | 'enterprise';
+  pin_admin?: string;
   created_at?: string;
 }
 
@@ -23,7 +24,6 @@ export interface Local {
   direccion?: string;
   activo?: boolean;
   ip_publica?: string;
-  pin_admin?: string;
 }
 
 export interface VentasResumen {

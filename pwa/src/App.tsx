@@ -243,6 +243,7 @@ export const App: React.FC = () => {
     return (
       <AdminPinLock
         selectedLocalId={selectedLocalId}
+        empresaId={auth.empresa?.id}
         onSuccess={() => {
           setIsAdminAuthenticated(true);
           sessionStorage.setItem("admin_authenticated", "true");

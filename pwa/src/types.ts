@@ -1,5 +1,24 @@
+export interface Empresa {
+  id: string;
+  nombre: string;
+  owner_user_id?: string;
+  plan_subscripcion?: 'free' | 'pro' | 'enterprise';
+  created_at?: string;
+}
+
+export interface TerminalActivado {
+  id: string;
+  empresa_id: string;
+  local_id: string;
+  device_token: string;
+  nombre_dispositivo?: string;
+  last_active_at?: string;
+  paired_at?: string;
+}
+
 export interface Local {
   id: string;
+  empresa_id?: string;
   nombre: string;
   direccion?: string;
   activo?: boolean;
@@ -9,6 +28,7 @@ export interface Local {
 
 export interface VentasResumen {
   local_id: string;
+  empresa_id?: string;
   fecha: string;
   total_facturado: number;
   num_tickets: number;
@@ -20,6 +40,7 @@ export interface VentasResumen {
 
 export interface VentaHora {
   local_id: string;
+  empresa_id?: string;
   fecha: string;
   hora: number;
   total_facturado: number;
@@ -53,6 +74,7 @@ export interface HistoricoItem {
 export interface Empleado {
   id: string;
   local_id: string;
+  empresa_id?: string;
   nombre: string;
   activo: boolean;
   pin_empleado?: string;
@@ -71,6 +93,7 @@ export type CategoriaGasto = 'Materia Prima' | 'Alquiler' | 'Suministros' | 'Gas
 export interface Gasto {
   id: string;
   local_id: string;
+  empresa_id?: string;
   fecha: string;
   concepto: string;
   categoria: CategoriaGasto;

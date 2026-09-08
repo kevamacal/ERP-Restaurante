@@ -1,5 +1,5 @@
 import React from 'react';
-import { Store, Sun, Moon, Settings, User, LogOut, Lock } from 'lucide-react';
+import { Store, Sun, Moon, Settings, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   selectedLocal: string;

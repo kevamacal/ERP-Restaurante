@@ -715,9 +715,6 @@ def main():
     parser.add_argument("--date", default=None, help="Fecha específica a sincronizar (YYYY-MM-DD), por defecto es hoy")
     parser.add_argument("--interval", type=int, default=600, help="Intervalo de ejecución continua en segundos (0 = ejecutar una sola vez)")
     
-    # SQLite Upload Options (Deprecated/kept for compatibility)
-    parser.add_argument("--db-path", default="base_datos.db", help="Ruta al archivo SQLite de base de datos (obsoleto)")
-    
     # Supabase Configuration (falls back to env variables loaded from .env)
     parser.add_argument("--supabase-url", default=os.getenv("SUPABASE_URL"), help="URL de Supabase")
     parser.add_argument("--supabase-key", default=os.getenv("SUPABASE_KEY"), help="API/Service Key de Supabase")

@@ -2,17 +2,22 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { getSupabase } from "../supabaseClient";
 import type { Gasto, CategoriaGasto } from "../types";
 import { analyzeInvoiceWithGemini } from "../geminiOCR";
+import { randomId, readJsonArray, writeJson } from "../utils/localStorage";
+import { isGasto } from "../utils/typeGuards";
+
+export type GastosFallbackReason = "sin_supabase" | "tabla_ausente" | null;
 
 export function useGastosManagement(
   selectedLocal: string,
   isAdminAuthenticated: boolean,
   empresaId?: string
 ) {
-  const [gastosList, setGastosList] = useState<Gasto[]>(() => {
-    const val = localStorage.getItem("app_gastos_fallback");
-    return val ? JSON.parse(val) : [];
-  });
+  const [gastosList, setGastosList] = useState<Gasto[]>(() =>
+    readJsonArray<unknown>("app_gastos_fallback").filter(isGasto)
+  );
   const [isGastosTableMissing, setIsGastosTableMissing] = useState<boolean>(false);
+  // Motivo por el que los gastos se guardan solo en este navegador.
+  const [fallbackReason, setFallbackReason] = useState<GastosFallbackReason>(null);
 
   // Form states
   const [gastoTipo, setGastoTipo] = useState<"gasto" | "ingreso">("gasto");
@@ -31,7 +36,10 @@ export function useGastosManagement(
 
   const fetchGastos = useCallback(async () => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      setFallbackReason("sin_supabase");
+      return;
+    }
 
     try {
       let activeEmpresaId = empresaId;
@@ -66,16 +74,19 @@ export function useGastosManagement(
           error.message?.includes("does not exist")
         ) {
           setIsGastosTableMissing(true);
+          setFallbackReason("tabla_ausente");
         } else {
           console.error("Error fetching gastos:", error);
         }
       } else if (data) {
         setGastosList(data);
         setIsGastosTableMissing(false);
+        setFallbackReason(null);
       }
     } catch (e) {
       console.error("Error in fetchGastos:", e);
       setIsGastosTableMissing(true);
+      setFallbackReason("tabla_ausente");
     }
   }, [selectedLocal, empresaId]);
 
@@ -107,14 +118,12 @@ export function useGastosManagement(
     if (!supabase || isGastosTableMissing) {
       const newGastoWithId = {
         ...newGastoRaw,
-        id: crypto.randomUUID
-          ? crypto.randomUUID()
-          : Math.random().toString(36).substring(2, 9),
+        id: randomId("gasto"),
         created_at: new Date().toISOString(),
       } as Gasto;
       const updated = [newGastoWithId, ...gastosList];
       setGastosList(updated);
-      localStorage.setItem("app_gastos_fallback", JSON.stringify(updated));
+      writeJson("app_gastos_fallback", updated);
 
       setGastoConcepto("");
       setGastoImporte("");
@@ -142,7 +151,7 @@ export function useGastosManagement(
     if (!supabase || isGastosTableMissing) {
       const updated = gastosList.filter((g) => g.id !== id);
       setGastosList(updated);
-      localStorage.setItem("app_gastos_fallback", JSON.stringify(updated));
+      writeJson("app_gastos_fallback", updated);
       return;
     }
 
@@ -207,6 +216,7 @@ export function useGastosManagement(
   return {
     gastosList,
     isGastosTableMissing,
+    fallbackReason,
     gastoTipo,
     setGastoTipo,
     gastoConcepto,

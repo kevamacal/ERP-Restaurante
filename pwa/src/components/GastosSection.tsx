@@ -1,5 +1,7 @@
 import React from "react";
+import { AlertTriangle } from "lucide-react";
 import type { Gasto, CategoriaGasto } from "../types";
+import type { GastosFallbackReason } from "../hooks/useGastosManagement";
 import { GastoFormCard } from "./gastos/GastoFormCard";
 import { GastosTable } from "./gastos/GastosTable";
 
@@ -25,6 +27,7 @@ interface GastosSectionProps {
   gastosList: Gasto[];
   requestDeleteGasto: (gasto: Gasto) => void;
   isGastosTableMissing: boolean;
+  fallbackReason: GastosFallbackReason;
 }
 
 export const GastosSection: React.FC<GastosSectionProps> = (props) => {
@@ -37,6 +40,24 @@ export const GastosSection: React.FC<GastosSectionProps> = (props) => {
         className="hidden"
         onChange={props.handleOCRFileChange}
       />
+
+      {props.fallbackReason && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            <strong className="font-bold">Datos no sincronizados.</strong>{" "}
+            {props.fallbackReason === "sin_supabase"
+              ? "No hay conexión configurada con el servidor."
+              : "La tabla de gastos no está disponible en el servidor."}{" "}
+            Los gastos que añadas se guardan solo en este navegador y no se
+            comparten con otros dispositivos.
+          </span>
+        </div>
+      )}
 
       {/* Desktop Grid Layout */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-8">

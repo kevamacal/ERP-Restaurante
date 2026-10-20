@@ -22,7 +22,7 @@ export const GastosTable: React.FC<GastosTableProps> = ({
         </h4>
         {isGastosTableMissing && (
           <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-            Modo Local (Sin tabla Supabase)
+            Modo local (sin sincronizar)
           </span>
         )}
       </div>

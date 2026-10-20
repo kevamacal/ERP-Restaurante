@@ -447,6 +447,7 @@ export const App: React.FC = () => {
             gastosList={gastosMgmt.gastosList}
             requestDeleteGasto={requestDeleteGasto}
             isGastosTableMissing={gastosMgmt.isGastosTableMissing}
+            fallbackReason={gastosMgmt.fallbackReason}
           />
         )}
       </main>

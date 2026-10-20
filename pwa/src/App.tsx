@@ -61,8 +61,8 @@ export const App: React.FC = () => {
   }, [auth.user]);
 
   // Theme state
-  const [theme, setTheme] = useState<"dark" | "light">(
-    (localStorage.getItem("app_theme") as "dark" | "light") || "dark"
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    localStorage.getItem("app_theme") === "light" ? "light" : "dark"
   );
 
   // Settings states
@@ -105,14 +105,11 @@ export const App: React.FC = () => {
 
   // Theme effect
   useEffect(() => {
-    document.body.className = theme;
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-      document.body.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.body.classList.remove("dark");
-    }
+    // `className = theme` borraba las clases base del <body> (tipografía,
+    // selección) definidas en index.html. Se añade y se quita solo lo necesario.
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(theme);
     localStorage.setItem("app_theme", theme);
   }, [theme]);
 

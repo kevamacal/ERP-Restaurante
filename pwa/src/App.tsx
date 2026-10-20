@@ -9,6 +9,7 @@ import { AdminPinLock } from "./components/AdminPinLock";
 import { AuthModal } from "./components/auth/AuthModal";
 import { OwnerLoginView } from "./components/auth/OwnerLoginView";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { SettingsModal } from "./components/SettingsModal";
 import { ConfirmDeleteModal, type DeleteModalState } from "./components/ConfirmDeleteModal";
 import { HorarioAdminSection } from "./components/HorarioAdminSection";
 import { GastosSection } from "./components/GastosSection";
@@ -19,6 +20,7 @@ import { useFichajesManagement } from "./hooks/useFichajesManagement";
 import { useGastosManagement } from "./hooks/useGastosManagement";
 import { useShiftMetrics } from "./hooks/useShiftMetrics";
 import { useAuth } from "./hooks/useAuth";
+import { useCostSettings } from "./hooks/useCostSettings";
 
 import type { FichajeConEmpleado, Gasto } from "./types";
 import {
@@ -64,8 +66,8 @@ export const App: React.FC = () => {
   );
 
   // Settings states
-  const foodCostPct = 30;
-  const hourlyWage = 10;
+  const { foodCostPct, hourlyWage, reloadCosts } = useCostSettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Custom hooks integration
   const empresaId = auth.empresa?.id;
@@ -264,6 +266,7 @@ export const App: React.FC = () => {
         onSelectLocal={dashboardData.setSelectedLocal}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         user={auth.user}
         empresa={auth.empresa}
         onSignOut={requestSignOut}
@@ -523,6 +526,15 @@ export const App: React.FC = () => {
         modalState={deleteModalState}
         onClose={() => setDeleteModalState(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Cost settings */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSaved={reloadCosts}
+        currentFoodCostPct={foodCostPct}
+        currentHourlyWage={hourlyWage}
       />
 
       <InstallPrompt />

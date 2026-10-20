@@ -2,18 +2,11 @@
 
 ## 1. Uso de datos locales (`datos`)
 
-El repositorio clonado no incluye los datos DBF dentro de `ERP-Restaurante`. Debes usar la carpeta local `c:\Numier\datos`.
+El repositorio clonado no incluye los datos DBF dentro de `ERP-Restaurante`. Debes usar la carpeta local de datos que presente el dispositivo.
 
 ### Scripts principales
 
-- `conversion_dbf_sqlite.py`
-  - Por defecto usa `../datos` como carpeta de entrada.
-  - Convierte todos los archivos `.DBF` en `datos` a una base SQLite `base_datos.db`.
-  - Uso:
-    ```powershell
-    cd c:\Numier\ERP-Restaurante
-    python conversion_dbf_sqlite.py
-    ```
+Este script ha sido realizado tomando como base un dispositivo cuyo sistema de gestión empleado es Numier. En caso de tener otro sistema de gestión, deberás contactar al administrador para que te otorgue un script correspondiente a dicho sistema.
 
 - `sync_agent.py`
   - Por defecto usa `../datos` como directorio DBF.
@@ -43,21 +36,37 @@ El frontend usa:
 - `npm run build` → `tsc -b && vite build`
 - `npm run dev` → `vite`
 
-### `vercel.json`
+### Variables de entorno para el agente Python
 
-Se agregó `vercel.json` para que Vercel use el package.json correcto:
+`sync_agent.py` carga automáticamente `.env` desde su propio directorio. Copia
+`.env.example` a `.env` en la raíz del repo (ese fichero está ignorado por git) y
+rellena:
 
-```json
-{
-  "version": 3,
-  "builds": [
-    {
-      "src": "ERP-Restaurante/pwa/package.json",
-      "use": "@vercel/static-build"
-    }
-  ]
-}
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+
+`start_sync.bat` ya no contiene credenciales: solo arranca el agente.
+
+### OCR de facturas (Edge Function)
+
+La clave de Gemini es un secreto de servidor, nunca una variable `VITE_*`:
+
+```bash
+cd pwa
+npx supabase login
+npx supabase secrets set GEMINI_API_KEY=tu-clave --project-ref iljbfckwqlklradypkyu
+npx supabase functions deploy analyze-invoice --project-ref iljbfckwqlklradypkyu
 ```
+
+Secretos opcionales: `GEMINI_MODEL` (por defecto `gemini-3.5-flash-lite`) y
+`ALLOWED_ORIGIN` (por defecto `*`; en producción pon el dominio de Vercel para
+restringir CORS).
+
+La función `analyze-invoice` exige sesión de Supabase (`verify_jwt`), valida el
+tipo y tamaño del archivo, y normaliza la respuesta antes de devolverla. En
+Vercel **no** hay que configurar ninguna clave de Gemini; si existe una
+`VITE_GEMINI_API_KEY` antigua, bórrala y **revoca la clave en Google AI Studio**
+(la anterior estuvo expuesta en el bundle).
 
 ## 3. Pasos recomendados
 

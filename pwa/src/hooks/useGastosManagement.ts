@@ -178,14 +178,7 @@ export function useGastosManagement(
     reader.onloadend = async () => {
       try {
         const base64String = reader.result as string;
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-        if (!apiKey) {
-          throw new Error(
-            "No se ha configurado la API Key de Gemini en las variables de entorno (VITE_GEMINI_API_KEY)."
-          );
-        }
-
-        const result = await analyzeInvoiceWithGemini(base64String, apiKey);
+        const result = await analyzeInvoiceWithGemini(base64String);
 
         setGastoProveedor(result.proveedor);
         setGastoConcepto(result.concepto);

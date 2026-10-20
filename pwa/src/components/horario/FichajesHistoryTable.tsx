@@ -1,9 +1,10 @@
 import React from "react";
 import { FileText, Trash2 } from "lucide-react";
+import type { FichajeConEmpleado } from "../../types";
 
 interface FichajesHistoryTableProps {
-  fichajesList: any[];
-  requestDeleteFichaje: (fic: any) => void;
+  fichajesList: FichajeConEmpleado[];
+  requestDeleteFichaje: (fic: FichajeConEmpleado) => void;
 }
 
 export const FichajesHistoryTable: React.FC<FichajesHistoryTableProps> = ({

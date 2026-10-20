@@ -1,5 +1,13 @@
 import { useState, useMemo } from "react";
-import type { Empleado, VentasResumen, Gasto, SummaryKPI, HistoricoItem } from "../types";
+import type {
+  Empleado,
+  VentasResumen,
+  Gasto,
+  SummaryKPI,
+  HistoricoItem,
+  FichajeConEmpleado,
+} from "../types";
+import { aggregateShiftHours } from "../utils/shiftMetrics";
 
 export const getWeekRange = (offset: number) => {
   const now = new Date();
@@ -30,7 +38,7 @@ export const getWeekDatesList = (monday: Date) => {
 };
 
 export function useShiftMetrics(
-  fichajesAll: any[],
+  fichajesAll: FichajeConEmpleado[],
   adminEmployees: Empleado[],
   resumenData: VentasResumen[],
   gastosList: Gasto[],
@@ -39,62 +47,10 @@ export function useShiftMetrics(
 ) {
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
-  const shiftMetrics = useMemo(() => {
-    const dailyHours: Record<string, number> = {};
-    const dailyCost: Record<string, number> = {};
-    const employeeDailyHours: Record<string, Record<string, number>> = {};
-    const employeeLastEntrada: Record<string, number> = {};
-
-    const sorted = [...fichajesAll].sort(
-      (a, b) =>
-        new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime()
-    );
-
-    sorted.forEach((fic) => {
-      const empId = fic.empleado_id;
-      const time = new Date(fic.fecha_hora);
-
-      if (fic.tipo === "entrada") {
-        employeeLastEntrada[empId] = time.getTime();
-      } else if (fic.tipo === "salida") {
-        const entradaTime = employeeLastEntrada[empId];
-        if (entradaTime) {
-          const diffHours = (time.getTime() - entradaTime) / (1000 * 60 * 60);
-          const validHours = diffHours > 16 ? 8 : Math.max(0, diffHours);
-
-          const rate =
-            fic.empleados?.coste_hora !== undefined &&
-            fic.empleados?.coste_hora !== null
-              ? Number(fic.empleados.coste_hora)
-              : hourlyWage;
-          const shiftCost = validHours * rate;
-
-          const d = new Date(entradaTime);
-          if (d.getHours() < 2) {
-            d.setDate(d.getDate() - 1);
-          }
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-          dailyHours[dateStr] = (dailyHours[dateStr] || 0) + validHours;
-          dailyCost[dateStr] = (dailyCost[dateStr] || 0) + shiftCost;
-
-          if (!employeeDailyHours[dateStr]) {
-            employeeDailyHours[dateStr] = {};
-          }
-          employeeDailyHours[dateStr][empId] =
-            (employeeDailyHours[dateStr][empId] || 0) + validHours;
-
-          delete employeeLastEntrada[empId];
-        }
-      }
-    });
-
-    return {
-      dailyHours,
-      dailyCost,
-      employeeDailyHours,
-    };
-  }, [fichajesAll, hourlyWage]);
+  const shiftMetrics = useMemo(
+    () => aggregateShiftHours(fichajesAll, hourlyWage),
+    [fichajesAll, hourlyWage]
+  );
 
   const dailyWorkedHours = useMemo(
     () => shiftMetrics.dailyHours,

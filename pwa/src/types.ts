@@ -88,6 +88,15 @@ export interface Fichaje {
   fecha_hora: string;
 }
 
+/** Fichaje con el join que hace `useFichajesManagement` sobre `empleados`. */
+export interface FichajeConEmpleado extends Fichaje {
+  empleados?: {
+    nombre: string;
+    local_id?: string;
+    coste_hora?: number | null;
+  } | null;
+}
+
 export type CategoriaGasto = 'Materia Prima' | 'Alquiler' | 'Suministros' | 'Gastos de Personal' | 'Ingreso / Bonificación' | 'Otros';
 
 export interface Gasto {

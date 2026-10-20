@@ -4,6 +4,7 @@ import {
   getRounded30MinISOString,
   getRounded30MinLocalInputString,
 } from "../utils/dateUtils";
+import type { FichajeConEmpleado } from "../types";
 
 export function useFichajesManagement(
   selectedLocal: string,
@@ -12,8 +13,8 @@ export function useFichajesManagement(
   fetchDataTrigger?: () => void,
   empresaId?: string
 ) {
-  const [fichajesList, setFichajesList] = useState<any[]>([]);
-  const [fichajesAll, setFichajesAll] = useState<any[]>([]);
+  const [fichajesList, setFichajesList] = useState<FichajeConEmpleado[]>([]);
+  const [fichajesAll, setFichajesAll] = useState<FichajeConEmpleado[]>([]);
 
   // Manual Fichaje Form States
   const [manualEmpId, setManualEmpId] = useState<string>("");
@@ -105,11 +106,12 @@ export function useFichajesManagement(
   const handleDeleteFichaje = async (id: string) => {
     const supabase = getSupabase();
     if (!supabase) {
+      // Sin cliente no hay nada que borrar en el servidor: se refleja solo en
+      // memoria. No se persiste en localStorage porque nadie lo lee de vuelta.
       const updatedAll = fichajesAll.filter((f) => f.id !== id);
       const updatedList = fichajesList.filter((f) => f.id !== id);
       setFichajesAll(updatedAll);
       setFichajesList(updatedList);
-      localStorage.setItem("app_fichajes_fallback", JSON.stringify(updatedAll));
       return;
     }
 

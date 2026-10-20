@@ -20,7 +20,7 @@ import { useGastosManagement } from "./hooks/useGastosManagement";
 import { useShiftMetrics } from "./hooks/useShiftMetrics";
 import { useAuth } from "./hooks/useAuth";
 
-import type { Gasto } from "./types";
+import type { FichajeConEmpleado, Gasto } from "./types";
 import {
   Euro,
   Receipt,
@@ -149,7 +149,7 @@ export const App: React.FC = () => {
     });
   };
 
-  const requestDeleteFichaje = (fic: any) => {
+  const requestDeleteFichaje = (fic: FichajeConEmpleado) => {
     const empName = fic.empleados?.nombre || "Empleado";
     const dateObj = new Date(fic.fecha_hora);
     const dateStr = dateObj.toLocaleDateString();

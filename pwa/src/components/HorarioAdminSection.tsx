@@ -1,5 +1,5 @@
 import React from "react";
-import type { Empleado } from "../types";
+import type { Empleado, FichajeConEmpleado } from "../types";
 import { EmployeeManagementCard } from "./horario/EmployeeManagementCard";
 import { ManualClockInCard } from "./horario/ManualClockInCard";
 import { WeeklyPaymentsTable } from "./horario/WeeklyPaymentsTable";
@@ -31,8 +31,8 @@ interface HorarioAdminSectionProps {
   };
   weekOffset: number;
   setWeekOffset: React.Dispatch<React.SetStateAction<number>>;
-  fichajesList: any[];
-  requestDeleteFichaje: (fic: any) => void;
+  fichajesList: FichajeConEmpleado[];
+  requestDeleteFichaje: (fic: FichajeConEmpleado) => void;
 }
 
 export const HorarioAdminSection: React.FC<HorarioAdminSectionProps> = (props) => {

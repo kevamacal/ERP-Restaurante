@@ -111,3 +111,76 @@ export interface Gasto {
   proveedor?: string;
   created_at?: string;
 }
+
+/* ------------------------------------------------------------------ */
+/* Estadísticas de ventas (RPC de solo lectura)                        */
+/* ------------------------------------------------------------------ */
+
+export interface AnalyticsCoverage {
+  primera_venta: string | null;
+  ultima_venta: string | null;
+  primera_hora: string | null;
+  ultima_hora: string | null;
+  dias_diarios: number;
+  dias_horarios: number;
+}
+
+export interface AnalyticsPeriodTotals {
+  facturado: number;
+  tickets: number;
+  efectivo: number;
+  tarjeta: number;
+  pendiente: number;
+  dias_con_datos: number;
+  dias_horarios: number;
+  primera_fecha: string | null;
+  ultima_fecha: string | null;
+  mejor_fecha: string | null;
+  mejor_facturado: number;
+  peor_fecha: string | null;
+  peor_facturado: number;
+}
+
+export interface AnalyticsTimeseriesRow {
+  bucket_start: string;
+  facturado: number;
+  tickets: number;
+  efectivo: number;
+  tarjeta: number;
+  pendiente: number;
+  dias_con_datos: number;
+}
+
+export interface AnalyticsDailyRow {
+  fecha: string;
+  facturado: number;
+  tickets: number;
+  efectivo: number;
+  tarjeta: number;
+  pendiente: number;
+  ultima_actualizacion: string | null;
+  total_count: number;
+}
+
+export interface AnalyticsHourlyRow {
+  /** 1 = lunes … 7 = domingo (ISODOW). */
+  dia_semana: number;
+  hora: number;
+  facturado: number;
+  tickets: number;
+  dias_con_datos: number;
+}
+
+export interface AnalyticsWeekdayRow {
+  dia_semana: number;
+  facturado: number;
+  tickets: number;
+  dias_con_datos: number;
+}
+
+export interface AnalyticsTopDay {
+  fecha: string;
+  facturado: number;
+  tickets: number;
+  ticket_medio: number;
+}

@@ -13,6 +13,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { ConfirmDeleteModal, type DeleteModalState } from "./components/ConfirmDeleteModal";
 import { HorarioAdminSection } from "./components/HorarioAdminSection";
 import { GastosSection } from "./components/GastosSection";
+import { EstadisticasSection } from "./components/estadisticas/EstadisticasSection";
 
 import { useDashboardData } from "./hooks/useDashboardData";
 import { useEmployeeManagement } from "./hooks/useEmployeeManagement";
@@ -32,6 +33,7 @@ import {
   Layers,
   FileText,
   Coins,
+  ChartColumn,
 } from "lucide-react";
 
 export const App: React.FC = () => {
@@ -40,7 +42,7 @@ export const App: React.FC = () => {
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(
     sessionStorage.getItem("admin_authenticated") === "true"
   );
-  const [activeTab, setActiveTab] = useState<"sales" | "horario" | "gastos">("sales");
+  const [activeTab, setActiveTab] = useState<"sales" | "stats" | "horario" | "gastos">("sales");
   const [mobileTab, setMobileTab] = useState<"summary" | "charts" | "admin">("summary");
 
   // Auth & Terminal integration
@@ -273,7 +275,7 @@ export const App: React.FC = () => {
         {/* Tab Selector & Status Header */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 pt-2 gap-3">
           {/* Desktop Tab Selector Header */}
-          <div className="hidden md:flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-2xl gap-1">
+          <div className="hidden md:flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-2xl gap-1 overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setActiveTab("sales")}
@@ -294,6 +296,17 @@ export const App: React.FC = () => {
                 }`}
             >
               <Clock className="h-4 w-4" /> Fichajes y Personal
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("stats")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "stats"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+            >
+              <ChartColumn className="h-4 w-4" /> Estadísticas
             </button>
 
             <button
@@ -395,6 +408,14 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {/* TAB: Estadísticas de ventas */}
+        {activeTab === "stats" && (
+          <EstadisticasSection
+            selectedLocal={dashboardData.selectedLocal}
+            empresaId={empresaId}
+          />
+        )}
+
         {/* TAB 2: Control Horario / Fichajes */}
         {activeTab === "horario" && (
           <HorarioAdminSection
@@ -460,7 +481,7 @@ export const App: React.FC = () => {
             setMobileTab("summary");
             setActiveTab("sales");
           }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "summary"
+          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "summary"
             ? "bg-indigo-500/20 text-indigo-400 font-bold"
             : "text-slate-400 hover:text-slate-200"
             }`}
@@ -475,7 +496,7 @@ export const App: React.FC = () => {
             setMobileTab("charts");
             setActiveTab("sales");
           }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "charts"
+          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "charts"
             ? "bg-indigo-500/20 text-indigo-400 font-bold"
             : "text-slate-400 hover:text-slate-200"
             }`}
@@ -486,8 +507,20 @@ export const App: React.FC = () => {
 
         <button
           type="button"
+          onClick={() => setActiveTab("stats")}
+          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "stats"
+            ? "bg-indigo-500/20 text-indigo-400 font-bold"
+            : "text-slate-400 hover:text-slate-200"
+            }`}
+        >
+          <ChartColumn className="h-4 w-4" />
+          <span className="text-[10px]">Stats</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("horario")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "horario"
+          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "horario"
             ? "bg-indigo-500/20 text-indigo-400 font-bold"
             : "text-slate-400 hover:text-slate-200"
             }`}
@@ -499,7 +532,7 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab("gastos")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${activeTab === "gastos"
+          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "gastos"
             ? "bg-indigo-500/20 text-indigo-400 font-bold"
             : "text-slate-400 hover:text-slate-200"
             }`}

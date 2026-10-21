@@ -66,6 +66,17 @@ Las migraciones son concatenables, no idempotentes por sí solas.
 `20260904_disable_rls_temp.sql` desactivó RLS en 8 tablas. La migración del 08
 lo revierte, pero el fichero sigue en el repo y se lee como si fuera vigente.
 
+> ⚠ **Deuda pendiente y por qué no se cerró en `20261020_analytics_readonly.sql`.**
+> El panel se usa también con PIN de admin y **sin sesión de Supabase**
+> (`AdminPinLock` → `verify_admin_pin`, que es `SECURITY DEFINER`). En ese modo
+> las queries salen como `anon`. Pasar las ventas a lectura solo-dueño
+> (`empresa_id IN (SELECT id FROM empresas WHERE owner_user_id = auth.uid())`)
+> dejaría el dashboard con PIN con datos vacíos. Cerrar RLS exige antes decidir
+> el modelo de acceso: sesión real para el kiosko, o RPC con verificación de PIN
+> por petición. La alternativa actual —seguir como `anon`— mantiene la lectura
+> cross-tenant que ya existía; el módulo de estadísticas no la amplía, pero
+> tampoco la resuelve.
+
 ### Reglas
 
 - **Prohibido `USING (true)` y `WITH CHECK (true)`** en cualquier política de
@@ -103,6 +114,19 @@ lo revierte, pero el fichero sigue en el repo y se lee como si fuera vigente.
 | `auto_assign_empresa_fichajes()` | Trigger | Ídem para `fichajes` |
 | `vincular_terminal()` | `SECURITY DEFINER` | Activación de terminal por QR. ⚠ Sin uso en el frontend hoy |
 | `verify_admin_pin()` | `SECURITY DEFINER` | Validación del PIN admin. **Duplicada** en `seed_demo_data.sql:54` |
+| `analytics_coverage()` | `SECURITY INVOKER` | Cobertura histórica diaria y horaria |
+| `analytics_period_totals()` | `SECURITY INVOKER` | Totales, días con actividad y mejor/peor día |
+| `analytics_timeseries()` | `SECURITY INVOKER` | Serie agrupada por día/semana/mes/año |
+| `analytics_daily_page()` | `SECURITY INVOKER` | Página de días para la tabla |
+| `analytics_hourly_profile()` | `SECURITY INVOKER` | Perfil por día de la semana y hora |
+| `analytics_weekday_totals()` | `SECURITY INVOKER` | Totales por día de la semana |
+| `analytics_top_days()` | `SECURITY INVOKER` | Mejores/peores días con actividad |
+
+Las funciones `analytics_*` son de **solo lectura** y `SECURITY INVOKER` (heredan
+RLS; no la saltan). Exigen `p_empresa_id` **o** `p_local_id` y, si hay `auth.uid()`,
+verifican que la empresa pertenece al usuario. No cambian tablas, columnas ni el
+payload del agente. El desglose horario excluye tickets pendientes, así que la
+suma por hora puede no cuadrar con el total diario cuando hay pendiente.
 
 Reglas para cualquier función nueva:
 

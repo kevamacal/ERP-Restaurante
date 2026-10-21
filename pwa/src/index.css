@@ -41,6 +41,16 @@ body.dark {
     radial-gradient(at 50% 100%, rgba(13, 148, 136, 0.05) 0px, transparent 50%);
   background-attachment: fixed;
   color: #f8fafc;
+
+  --chart-sales: #34d399;
+  --chart-sales-alt: #818cf8;
+  --chart-pending: #fbbf24;
+  --chart-grid: #1e293b;
+  --chart-axis: #94a3b8;
+  --chart-tooltip-bg: #0f172a;
+  --chart-tooltip-border: #334155;
+  --chart-text: #f8fafc;
+  --chart-surface: rgba(15, 23, 42, 0.55);
 }
 
 body.light {
@@ -51,6 +61,16 @@ body.light {
     radial-gradient(at 50% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
   background-attachment: fixed;
   color: #0f172a;
+
+  --chart-sales: #059669;
+  --chart-sales-alt: #4f46e5;
+  --chart-pending: #d97706;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #64748b;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #cbd5e1;
+  --chart-text: #0f172a;
+  --chart-surface: rgba(255, 255, 255, 0.7);
 }
 
 h1, h2, h3, .font-heading {

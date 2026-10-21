@@ -5,6 +5,29 @@ import { getRounded30MinISOString } from '../utils/dateUtils';
 import { EmployeePinPadOverlay } from './clockIn/EmployeePinPadOverlay';
 import { Wifi, WifiOff, CheckCircle2, Lock, HelpCircle, Search, Store, Delete, X } from 'lucide-react';
 
+// Restaurant SVG logo shared with Header
+const RestaurantLogo: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    <path
+      d="M7 2v4c0 1.1.9 2 2 2v13a1 1 0 0 0 2 0V8c1.1 0 2-.9 2-2V2"
+      stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+    />
+    <line x1="9" y1="2" x2="9" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <line x1="11" y1="2" x2="11" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <path
+      d="M16 2c0 0 2 2.5 2 6s-2 5-2 5v8a1 1 0 0 1-2 0V2h2z"
+      stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+      fill="currentColor" fillOpacity="0.15"
+    />
+  </svg>
+);
+
 interface ClockInViewProps {
   locales: Local[];
   onGoToAdmin: () => void;
@@ -383,27 +406,31 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white relative">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.03)_0%,transparent_70%)] pointer-events-none" />
+    <div className="min-h-screen flex flex-col bg-stone-950 text-white relative">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(120,53,15,0.1)_0%,transparent_70%)] pointer-events-none" />
 
       {/* Top bar */}
       <header className="max-w-7xl mx-auto px-4 py-4 sm:py-6 w-full flex items-center justify-between z-10">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-            H
+        <div className="flex items-center gap-3">
+          {/* Logo */}
+          <div className="relative h-10 w-10 rounded-xl flex items-center justify-center shrink-0">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 opacity-90" />
+            <div className="absolute inset-[2px] rounded-[10px] bg-stone-950 flex items-center justify-center">
+              <RestaurantLogo className="h-5 w-5 text-amber-400" />
+            </div>
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight">ERP Restaurante</h1>
-            <p className="text-[10px] text-indigo-400 font-semibold tracking-wider uppercase">Registro de Jornada</p>
+            <h1 className="text-base font-bold tracking-tight font-heading">ERP Restaurante</h1>
+            <p className="text-[10px] text-amber-500 font-semibold tracking-wider uppercase">Registro de Jornada</p>
           </div>
         </div>
 
         <button
           type="button"
           onClick={onGoToAdmin}
-          className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-300"
+          className="px-3.5 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-stone-300"
         >
-          <Lock className="h-3 w-3 text-indigo-400" />
+          <Lock className="h-3 w-3 text-amber-400" />
           Dashboard Admin
         </button>
       </header>
@@ -412,26 +439,26 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
       <main className="flex-1 flex items-center justify-center px-4 py-4 sm:py-8 z-10">
         {statusMsg.type === 'success' ? (
           /* Success View */
-          <div className="glass-card max-w-md w-full p-8 rounded-3xl border border-slate-800 text-center flex flex-col items-center animate-fade-in">
-            <div className="h-16 w-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+          <div className="glass-card max-w-md w-full p-8 rounded-3xl border border-stone-800 text-center flex flex-col items-center animate-fade-in">
+            <div className="h-16 w-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.12)]">
               <CheckCircle2 className="h-10 w-10 animate-scale-up" />
             </div>
             <h2 className="text-xl font-bold font-heading mb-2">¡Fichaje Completado!</h2>
-            <p className="text-sm text-slate-300 mb-6 max-w-xs">{statusMsg.text}</p>
-            <span className="text-xs text-slate-500 font-mono">
-              Registrado a las: {new Date().toLocaleTimeString()}
+            <p className="text-sm text-stone-300 mb-6 max-w-xs">{statusMsg.text}</p>
+            <span className="text-xs text-stone-500 font-mono">
+              Registrado a las: {new Date().toLocaleTimeString('es-ES')}
             </span>
           </div>
         ) : (
           /* Work Clock-in form */
-          <div className="glass-card max-w-md w-full p-5 sm:p-7 rounded-3xl border border-slate-800 flex flex-col">
+          <div className="glass-card max-w-md w-full p-5 sm:p-7 rounded-3xl border border-stone-800 flex flex-col">
             <h2 className="text-lg sm:text-xl font-bold font-heading mb-1 text-center">Fichar Entrada / Salida</h2>
-            <p className="text-[11px] text-slate-400 mb-5 text-center">Selecciona tu establecimiento y toca tu nombre.</p>
+            <p className="text-[11px] text-stone-400 mb-5 text-center">Selecciona tu establecimiento y toca tu nombre.</p>
 
             {/* Select Local (Visual Tabs instead of dropdown) */}
             <div className="space-y-1.5 mb-4">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Establecimiento</span>
-              <div className="flex bg-slate-900 border border-slate-855 p-1 rounded-xl overflow-x-auto gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Establecimiento</span>
+              <div className="flex bg-stone-900 border border-stone-800 p-1 rounded-xl overflow-x-auto gap-1">
                 {activeLocales.map((l) => (
                   <button
                     key={l.id}
@@ -443,8 +470,8 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                     }}
                     className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                       selectedLocalId === l.id
-                        ? 'bg-indigo-500 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
+                        : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
                     }`}
                   >
                     <Store className="h-3.5 w-3.5" />
@@ -465,13 +492,13 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                 <div className="space-y-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Busca tu Nombre</span>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Escribe para buscar..."
-                      className="w-full bg-slate-900 border border-slate-850 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+                      className="w-full bg-stone-900 border border-stone-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors placeholder:text-stone-600"
                     />
                   </div>
                 </div>
@@ -505,7 +532,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                           setEmployeePin('');
                           setStatusMsg({ type: '', text: '' });
                         }}
-                        className="p-2.5 rounded-xl border border-slate-850 bg-slate-900/50 hover:bg-slate-800/80 hover:border-indigo-500/30 active:scale-95 text-left flex items-center gap-2.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+                        className="p-2.5 rounded-xl border border-stone-800 bg-stone-900/60 hover:bg-stone-800/80 hover:border-amber-500/30 active:scale-95 text-left flex items-center gap-2.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
                       >
                         <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center font-bold text-[10px] border shadow-sm ${colorClass}`}>
                           {initials}

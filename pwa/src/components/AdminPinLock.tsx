@@ -70,12 +70,12 @@ export const AdminPinLock: React.FC<AdminPinLockProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white px-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)] pointer-events-none" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-white px-4">
+      {/* Background warm glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(120,53,15,0.15)_0%,transparent_70%)] pointer-events-none" />
 
-      <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-slate-800/80 flex flex-col items-center relative shadow-2xl">
-        <div className={`p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-4 transition-all ${error ? 'animate-shake text-rose-450 bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : ''}`}>
+      <div className="glass-card max-w-sm w-full p-8 rounded-3xl border border-stone-800/80 flex flex-col items-center relative shadow-2xl">
+        <div className={`p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mb-4 transition-all ${error ? 'animate-shake text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : ''}`}>
           <Lock className="h-8 w-8" />
         </div>
 
@@ -85,11 +85,11 @@ export const AdminPinLock: React.FC<AdminPinLockProps> = ({
         {/* PIN Indicators */}
         <div className={`flex gap-4 mb-10 ${error ? 'animate-shake' : ''}`}>
           {[0, 1, 2, 3].map((idx) => {
-            let indicatorClass = 'border-slate-700 bg-slate-900';
+            let indicatorClass = 'border-stone-700 bg-stone-900';
             if (error) {
               indicatorClass = 'border-rose-500 bg-rose-500/40 animate-pulse';
             } else if (idx < pin.length) {
-              indicatorClass = 'border-indigo-400 bg-indigo-450 scale-110 shadow-[0_0_8px_rgba(99,102,241,0.5)]';
+              indicatorClass = 'border-amber-400 bg-amber-500 scale-110 shadow-[0_0_8px_rgba(245,158,11,0.5)]';
             }
             return (
               <div
@@ -113,7 +113,7 @@ export const AdminPinLock: React.FC<AdminPinLockProps> = ({
               key={num}
               type="button"
               onClick={() => handleKeyPress(num)}
-              className="h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/30 active:scale-90 active:bg-indigo-600 border border-slate-800 text-lg font-bold transition-all flex items-center justify-center cursor-pointer text-white"
+              className="h-14 rounded-2xl bg-stone-900 hover:bg-stone-800 hover:border-amber-500/30 active:scale-90 active:bg-amber-600 border border-stone-800 text-lg font-bold transition-all flex items-center justify-center cursor-pointer text-white"
             >
               {num}
             </button>
@@ -121,21 +121,21 @@ export const AdminPinLock: React.FC<AdminPinLockProps> = ({
           <button
             type="button"
             onClick={onGoToFichar}
-            className="h-14 rounded-2xl bg-slate-950 hover:bg-slate-900 active:scale-90 border border-slate-900 hover:border-slate-800 text-xs font-semibold text-slate-450 transition-all flex items-center justify-center gap-1 cursor-pointer"
+            className="h-14 rounded-2xl bg-stone-950 hover:bg-stone-900 active:scale-90 border border-stone-900 hover:border-stone-800 text-xs font-semibold text-stone-400 transition-all flex items-center justify-center gap-1 cursor-pointer"
           >
             <ArrowLeft className="h-3 w-3" /> Fichar
           </button>
           <button
             type="button"
             onClick={() => handleKeyPress('0')}
-            className="h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/30 active:scale-90 active:bg-indigo-600 border border-slate-800 text-lg font-bold transition-all flex items-center justify-center cursor-pointer text-white"
+            className="h-14 rounded-2xl bg-stone-900 hover:bg-stone-800 hover:border-amber-500/30 active:scale-90 active:bg-amber-600 border border-stone-800 text-lg font-bold transition-all flex items-center justify-center cursor-pointer text-white"
           >
             0
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="h-14 rounded-2xl bg-slate-900/60 hover:bg-slate-850 hover:border-indigo-500/30 active:scale-90 active:bg-slate-800 border border-slate-800 text-slate-400 transition-all flex items-center justify-center cursor-pointer"
+            className="h-14 rounded-2xl bg-stone-900/60 hover:bg-stone-800 hover:border-amber-500/30 active:scale-90 active:bg-stone-800 border border-stone-800 text-stone-400 transition-all flex items-center justify-center cursor-pointer"
           >
             <Delete className="h-5 w-5" />
           </button>

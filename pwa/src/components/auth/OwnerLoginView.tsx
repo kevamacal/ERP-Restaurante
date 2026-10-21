@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import type { Local } from "../../types";
 import {
-  Store,
   Lock,
   Mail,
   Building2,
@@ -13,6 +12,16 @@ import {
   EyeOff,
   Zap,
 } from "lucide-react";
+
+// Restaurant logo icon
+const RestaurantLogo: React.FC<{ className?: string }> = ({ className = 'h-6 w-6' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M7 2v4c0 1.1.9 2 2 2v13a1 1 0 0 0 2 0V8c1.1 0 2-.9 2-2V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <line x1="9" y1="2" x2="9" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <line x1="11" y1="2" x2="11" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <path d="M16 2c0 0 2 2.5 2 6s-2 5-2 5v8a1 1 0 0 1-2 0V2h2z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
+  </svg>
+);
 
 interface OwnerLoginViewProps {
   locales: Local[];
@@ -84,17 +93,18 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 text-white relative px-4 py-8">
-      {/* Dynamic Background Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08)_0%,transparent_70%)] pointer-events-none" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-white relative px-4 py-8">
+      {/* Warm Background Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(120,53,15,0.12)_0%,transparent_70%)] pointer-events-none" />
 
       {/* Main Card */}
       <div className="glass-card max-w-md w-full p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6 text-center z-10 shadow-2xl animate-fade-in">
         {/* Brand */}
         <div className="flex items-center justify-center gap-3 mb-2">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-500 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <div className="h-full w-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Store className="h-6 w-6 text-indigo-400" />
+          <div className="relative h-12 w-12 rounded-2xl flex items-center justify-center shrink-0">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 opacity-90" />
+            <div className="absolute inset-[2px] rounded-[14px] bg-stone-950 flex items-center justify-center">
+              <RestaurantLogo className="h-6 w-6 text-amber-400" />
             </div>
           </div>
           <div className="text-left">
@@ -119,31 +129,31 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
         </div>
 
         {/* Demo Sandbox Banner & 1-Click Access */}
-        <div className="p-4 rounded-2xl bg-gradient-to-b from-indigo-950/70 via-slate-900 to-slate-900 border border-indigo-500/30 text-left space-y-2.5 shadow-xl shadow-indigo-950/40 relative overflow-hidden">
+        <div className="p-4 rounded-2xl bg-gradient-to-b from-amber-950/50 via-stone-900 to-stone-900 border border-amber-600/25 text-left space-y-2.5 shadow-xl shadow-amber-950/30 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-xs">
+            <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
               <Zap className="h-4 w-4 text-amber-400 fill-amber-400" />
               <span>Entorno Demo / Sandbox</span>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-semibold">
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
               Acceso Inmediato
             </span>
           </div>
-          <p className="text-[11px] text-slate-300 leading-snug">
+          <p className="text-[11px] text-stone-300 leading-snug">
             Prueba la plataforma completa con datos pre-cargados de ventas, gráficos, gastos y personal.
           </p>
           <button
             type="button"
             onClick={handleDemoLogin}
             disabled={loading}
-            className="w-full py-2.5 bg-gradient-to-r from-amber-500 via-indigo-600 to-indigo-700 hover:from-amber-400 hover:to-indigo-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-indigo-500/25 transition-all cursor-pointer transform active:scale-[0.98]"
+            className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 transition-all cursor-pointer transform active:scale-[0.98]"
           >
             <Zap className="h-4 w-4 fill-white" />
             <span>Probar versión Demo (1-Click)</span>
           </button>
-          <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] text-slate-400 gap-1">
-            <span>Email: <code className="text-indigo-300 font-mono">demo@erprestaurante.app</code></span>
-            <span>Pass: <code className="text-indigo-300 font-mono">DemoPassword123!</code></span>
+          <div className="pt-2 border-t border-stone-800/80 flex flex-wrap items-center justify-between text-[10px] text-stone-400 gap-1">
+            <span>Email: <code className="text-amber-300 font-mono">demo@erprestaurante.app</code></span>
+            <span>Pass: <code className="text-amber-300 font-mono">DemoPassword123!</code></span>
           </div>
         </div>
 
@@ -155,9 +165,10 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
               setMode("login");
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${mode === "login"
-              ? "bg-indigo-600 text-white shadow-md font-bold"
-              : "text-slate-400 hover:text-slate-200"
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+              mode === "login"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
+                : "text-stone-400 hover:text-stone-200"
               }`}
           >
             Iniciar Sesión
@@ -168,9 +179,10 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
               setMode("register");
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${mode === "register"
-              ? "bg-indigo-600 text-white shadow-md font-bold"
-              : "text-slate-400 hover:text-slate-200"
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
+              mode === "register"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
+                : "text-stone-400 hover:text-stone-200"
               }`}
           >
             Registrar Restaurante
@@ -262,7 +274,7 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-indigo-500/20"
+            className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20"
           >
             <ShieldCheck className="h-4 w-4" />
             {mode === "login"

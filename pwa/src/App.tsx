@@ -9,7 +9,6 @@ import { AdminPinLock } from "./components/AdminPinLock";
 import { AuthModal } from "./components/auth/AuthModal";
 import { OwnerLoginView } from "./components/auth/OwnerLoginView";
 import { InstallPrompt } from "./components/InstallPrompt";
-import { SettingsModal } from "./components/SettingsModal";
 import { ConfirmDeleteModal, type DeleteModalState } from "./components/ConfirmDeleteModal";
 import { HorarioAdminSection } from "./components/HorarioAdminSection";
 import { GastosSection } from "./components/GastosSection";
@@ -68,8 +67,8 @@ export const App: React.FC = () => {
   );
 
   // Settings states
-  const { foodCostPct, hourlyWage, reloadCosts } = useCostSettings();
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const { foodCostPct, hourlyWage, reloadCosts: _reloadCosts } = useCostSettings();
+  const [_isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Custom hooks integration
   const empresaId = auth.empresa?.id;
@@ -275,14 +274,15 @@ export const App: React.FC = () => {
         {/* Tab Selector & Status Header */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 pt-2 gap-3">
           {/* Desktop Tab Selector Header */}
-          <div className="hidden md:flex bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-1 rounded-2xl gap-1 overflow-x-auto max-w-full">
+          <div className="hidden md:flex bg-stone-100/80 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 p-1 rounded-2xl gap-1 overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setActiveTab("sales")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "sales"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "sales"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+              }`}
             >
               <Layers className="h-4 w-4" /> Ventas y Resumen
             </button>
@@ -290,10 +290,11 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("horario")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "horario"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "horario"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+              }`}
             >
               <Clock className="h-4 w-4" /> Fichajes y Personal
             </button>
@@ -301,10 +302,11 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("stats")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "stats"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "stats"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+              }`}
             >
               <ChartColumn className="h-4 w-4" /> Estadísticas
             </button>
@@ -312,10 +314,11 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("gastos")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "gastos"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeTab === "gastos"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+              }`}
             >
               <FileText className="h-4 w-4" /> Gastos y Facturas
             </button>
@@ -324,11 +327,11 @@ export const App: React.FC = () => {
           {/* Status Pills (Visible on Mobile & Desktop) */}
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full md:w-auto overflow-x-auto">
             {shiftMetrics.kpis.ultimaActualizacion && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-[11px] sm:text-xs font-semibold text-stone-600 dark:text-stone-300 whitespace-nowrap">
+                <Clock className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                 Última act:{" "}
-                <span className="text-slate-900 dark:text-slate-100 font-bold font-mono">
-                  {new Date(shiftMetrics.kpis.ultimaActualizacion).toLocaleTimeString([], {
+                <span className="text-stone-900 dark:text-stone-100 font-bold font-mono">
+                  {new Date(shiftMetrics.kpis.ultimaActualizacion).toLocaleTimeString('es-ES', {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
@@ -336,8 +339,8 @@ export const App: React.FC = () => {
               </span>
             )}
 
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
-              <Calendar className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 rounded-xl bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-[11px] sm:text-xs font-semibold text-stone-600 dark:text-stone-300 whitespace-nowrap">
+              <Calendar className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               {dashboardData.resumenData[0]?.fecha || "Sin ventas cargadas"}
             </span>
           </div>
@@ -474,72 +477,30 @@ export const App: React.FC = () => {
       </main>
 
       {/* Mobile Navigation Bar */}
-      <div className="fixed bottom-4 left-4 right-4 z-40 md:hidden glass-panel border border-slate-800/80 rounded-2xl p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.05)] flex items-center justify-around backdrop-blur-xl">
-        <button
-          type="button"
-          onClick={() => {
-            setMobileTab("summary");
-            setActiveTab("sales");
-          }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "summary"
-            ? "bg-indigo-500/20 text-indigo-400 font-bold"
-            : "text-slate-400 hover:text-slate-200"
+      <div className="fixed bottom-4 left-4 right-4 z-40 md:hidden glass-panel border border-stone-800/60 dark:border-amber-900/20 rounded-2xl p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex items-center justify-around backdrop-blur-xl">
+        {([
+          { key: 'ventas', tab: 'sales' as const, mTab: 'summary' as const, icon: Layers, label: 'Ventas', check: activeTab === 'sales' && mobileTab === 'summary', onClick: () => { setMobileTab('summary'); setActiveTab('sales'); } },
+          { key: 'resumen', tab: 'sales' as const, mTab: 'charts' as const, icon: Coins, label: 'Resumen', check: activeTab === 'sales' && mobileTab === 'charts', onClick: () => { setMobileTab('charts'); setActiveTab('sales'); } },
+          { key: 'stats', tab: 'stats' as const, mTab: null, icon: ChartColumn, label: 'Stats', check: activeTab === 'stats', onClick: () => setActiveTab('stats') },
+          { key: 'horario', tab: 'horario' as const, mTab: null, icon: Clock, label: 'Fichajes', check: activeTab === 'horario', onClick: () => setActiveTab('horario') },
+          { key: 'gastos', tab: 'gastos' as const, mTab: null, icon: FileText, label: 'Gastos', check: activeTab === 'gastos', onClick: () => setActiveTab('gastos') },
+        ] as const).map(({ key, icon: Icon, label, check, onClick }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={onClick}
+            className={`relative flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all duration-200 cursor-pointer ${
+              check ? 'text-amber-400' : 'text-stone-500 dark:text-stone-500 hover:text-stone-300'
             }`}
-        >
-          <Layers className="h-4 w-4" />
-          <span className="text-[10px]">Ventas</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMobileTab("charts");
-            setActiveTab("sales");
-          }}
-          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "sales" && mobileTab === "charts"
-            ? "bg-indigo-500/20 text-indigo-400 font-bold"
-            : "text-slate-400 hover:text-slate-200"
-            }`}
-        >
-          <Coins className="h-4 w-4" />
-          <span className="text-[10px]">Resumen</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("stats")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "stats"
-            ? "bg-indigo-500/20 text-indigo-400 font-bold"
-            : "text-slate-400 hover:text-slate-200"
-            }`}
-        >
-          <ChartColumn className="h-4 w-4" />
-          <span className="text-[10px]">Stats</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("horario")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "horario"
-            ? "bg-indigo-500/20 text-indigo-400 font-bold"
-            : "text-slate-400 hover:text-slate-200"
-            }`}
-        >
-          <Clock className="h-4 w-4" />
-          <span className="text-[10px]">Fichajes</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("gastos")}
-          className={`flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl transition-all cursor-pointer ${activeTab === "gastos"
-            ? "bg-indigo-500/20 text-indigo-400 font-bold"
-            : "text-slate-400 hover:text-slate-200"
-            }`}
-        >
-          <FileText className="h-4 w-4" />
-          <span className="text-[10px]">Gastos</span>
-        </button>
+          >
+            {/* Active indicator dot */}
+            {check && (
+              <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full bg-amber-500" />
+            )}
+            <Icon className={`h-[18px] w-[18px] transition-transform duration-200 ${check ? 'scale-110' : ''}`} />
+            <span className={`text-[9px] font-semibold tracking-wide ${check ? 'text-amber-400' : ''}`}>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Owner Auth Modal (SaaS Login / Signup) */}
@@ -556,15 +517,6 @@ export const App: React.FC = () => {
         modalState={deleteModalState}
         onClose={() => setDeleteModalState(null)}
         onConfirm={handleConfirmDelete}
-      />
-
-      {/* Cost settings */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSaved={reloadCosts}
-        currentFoodCostPct={foodCostPct}
-        currentHourlyWage={hourlyWage}
       />
 
       <InstallPrompt />

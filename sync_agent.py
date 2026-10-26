@@ -7,6 +7,7 @@ import decimal
 import sqlite3
 import argparse
 import logging
+import uuid
 from typing import Dict, List, Any, Tuple, Optional
 import urllib.request
 import urllib.parse
@@ -307,7 +308,7 @@ class DBFMetricsExtractor:
             
             # Filter for closed and pending tickets
             cab_estado = record.get('CAB_ESTADO')
-            if cab_estado in ('C', 'c', 'P'):
+            if cab_estado in ('C', 'c', 'P', 'G', 'g'):
                 # Parse hour to compute business date
                 hora_raw = record.get('CAB_HORA')
                 hora_num = 0
@@ -343,7 +344,7 @@ class DBFMetricsExtractor:
         logger.info(f"  Scanned {processed_count:,} records in cabecera.DBF. Found {len(tickets):,} tickets matching business date.")
         return tickets
 
-    def extract_metrics(self, target_date: datetime.date) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def extract_metrics(self, target_date: datetime.date) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Calculates shift and hourly sales summaries for the given date."""
         t0 = time.time()
         
@@ -351,7 +352,7 @@ class DBFMetricsExtractor:
         tickets = self._get_closed_tickets(target_date)
         if not tickets:
             logger.info("No tickets closed on this date.")
-            return [], []
+            return [], [], []
 
         # 2. Get ticket totals from detail
         if not os.path.exists(self.detalle_path):
@@ -396,6 +397,7 @@ class DBFMetricsExtractor:
         logger.info(f"  Scanned {processed_count:,} records in detalle.DBF. Summed totals.")
 
         # 3. Consolidate daily/shift and hourly metrics
+        gastos_raw = []
         shifts = {}
         hours = {}
         
@@ -403,6 +405,15 @@ class DBFMetricsExtractor:
             amount = ticket_totals.get(cab_id, 0.0)
             shift_id = meta['turno']
             cab_estado = meta.get('cab_estado', 'C')
+
+            # Expenses (CAB_ESTADO = 'G') are not sales: collect them separately
+            if cab_estado in ('G', 'g'):
+                gastos_raw.append({
+                    'cab_id': cab_id,
+                    'fecha': target_date.strftime("%Y-%m-%d"),
+                    'importe': round(abs(amount), 2)
+                })
+                continue
             
             # Daily/Shift aggregates
             if shift_id not in shifts:
@@ -424,7 +435,7 @@ class DBFMetricsExtractor:
                     shifts[shift_id]['total_tarjeta'] += amount
 
             # Hourly aggregates (only closed sales)
-            if cab_estado not in ('P', 'p'):
+            if cab_estado not in ('P', 'p', 'G', 'g'):
                 h = meta['hora']
                 if h not in hours:
                     hours[h] = {
@@ -462,7 +473,7 @@ class DBFMetricsExtractor:
 
         elapsed = time.time() - t0
         logger.info(f"Metrics extraction completed in {elapsed:.3f} seconds.")
-        return resumenes_turnos, desglose_horas
+        return resumenes_turnos, desglose_horas, gastos_raw
 
 class DBFHistoricalExtractor:
     """Extracts the entire historical sales metrics directly from DBF files."""
@@ -471,7 +482,7 @@ class DBFHistoricalExtractor:
         self.cabecera_path = os.path.join(dbf_dir, "cabecera.DBF")
         self.detalle_path = os.path.join(dbf_dir, "detalle.DBF")
 
-    def extract_all(self, local_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def extract_all(self, local_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Scans DBF files and generates historical daily/shift and hourly lists."""
         if not os.path.exists(self.cabecera_path):
             raise FileNotFoundError(f"Missing DBF file: {self.cabecera_path}")
@@ -493,7 +504,7 @@ class DBFHistoricalExtractor:
         closed_tickets = {}
         for record in cab_table:
             cab_estado = record.get('CAB_ESTADO')
-            if cab_estado in ('C', 'c'):
+            if cab_estado in ('C', 'c', 'G', 'g'):
                 cab_id = record.get('CAB_ID')
                 if cab_id is not None:
                     rec_date = parse_dbf_date(record.get('CAB_FECHA'))
@@ -520,7 +531,8 @@ class DBFHistoricalExtractor:
                         closed_tickets[cab_id] = {
                             'fecha': business_date.strftime("%Y-%m-%d"),
                             'hora': hora_num,
-                            'tipo_cobro': record.get('CAB_COBRO', 'E')
+                            'tipo_cobro': record.get('CAB_COBRO', 'E'),
+                            'estado': cab_estado
                         }
 
         logger.info(f"  Scanned cabecera.DBF: found {len(closed_tickets):,} closed tickets.")
@@ -552,11 +564,16 @@ class DBFHistoricalExtractor:
 
         shifts = {}
         hours = {}
+        gastos_raw = []
         for cab_id, meta in closed_tickets.items():
             amount = ticket_totals.get(cab_id, 0.0)
             fecha = meta['fecha']
             hora = meta['hora']
             tipo_cobro = meta['tipo_cobro']
+
+            if meta['estado'] in ('G', 'g'):
+                gastos_raw.append({'cab_id': cab_id, 'fecha': fecha, 'importe': round(abs(amount), 2)})
+                continue
 
             s_key = (fecha, 'diario')
             if s_key not in shifts:
@@ -610,7 +627,7 @@ class DBFHistoricalExtractor:
 
         elapsed = time.time() - t0
         logger.info(f"DBF historical extraction complete: {len(turnos_list):,} daily/shift records, {len(horas_list):,} hourly records. Time: {elapsed:.2f}s")
-        return turnos_list, horas_list
+        return turnos_list, horas_list, gastos_raw
 
 class SyncAgent:
     """Coordinates TPV data extraction and upload to Supabase."""
@@ -622,6 +639,30 @@ class SyncAgent:
         else:
             self.supabase = None
             logger.warning("Running in TEST mode (no Supabase credentials provided). Data will not be uploaded.")
+
+    def _gastos_rows(self, raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Builds rows for the Supabase table `gastos` from tickets with CAB_ESTADO = 'G'."""
+        empresa_id = os.getenv("EMPRESA_ID") or None
+        categoria = os.getenv("GASTOS_CATEGORIA", "TPV")
+        rows = []
+        for g in raw:
+            if not g['importe']:
+                continue
+            row = {
+                # Deterministic id: re-syncing the same ticket updates the row instead of duplicating it
+                "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.local_id}|gasto|{g['cab_id']}")),
+                "local_id": self.local_id,
+                "fecha": g['fecha'],
+                "concepto": f"Gasto TPV #{g['cab_id']}",
+                "categoria": categoria,
+                "importe": g['importe'],
+                "proveedor": None,
+                "tipo": None,
+            }
+            if empresa_id:
+                row["empresa_id"] = empresa_id
+            rows.append(row)
+        return rows
 
     def update_public_ip(self) -> bool:
         """Retrieves and updates the local public IP address in Supabase."""
@@ -654,11 +695,15 @@ class SyncAgent:
             
         try:
             extractor = DBFMetricsExtractor(dbf_dir)
-            turnos, horas = extractor.extract_metrics(target_date)
+            turnos, horas, gastos_raw = extractor.extract_metrics(target_date)
+            gastos = self._gastos_rows(gastos_raw)
             
             # Print report to console
             for t in turnos:
                 logger.info(f"Turno '{t['turno']}' [{self.local_id}]: Total: {t['total_facturado']}€ | Tickets: {t['num_tickets']} | Efectivo: {t['total_efectivo']}€ | Tarjeta: {t['total_tarjeta']}€")
+            total_gastos = sum(g['importe'] for g in gastos)
+            total_ventas = sum(t['total_facturado'] for t in turnos)
+            logger.info(f"Resultado neto [{self.local_id}] {target_date}: Ventas {total_ventas:.2f}€ - Gastos {total_gastos:.2f}€ = {total_ventas - total_gastos:.2f}€")
             
             if self.supabase:
                 # Add local_id to the payloads
@@ -668,8 +713,11 @@ class SyncAgent:
                 # Upload
                 t_success = self.supabase.upload_in_batches("ventas_resumen_diario", turnos_payload, "local_id,fecha,turno", batch_size=200)
                 h_success = self.supabase.upload_in_batches("ventas_por_hora", horas_payload, "local_id,fecha,hora", batch_size=500)
+                g_success = True
+                if gastos:
+                    g_success = self.supabase.upload_in_batches("gastos", gastos, "id", batch_size=200)
                 
-                return t_success and h_success
+                return t_success and h_success and g_success
             return True
         except Exception as e:
             logger.exception(f"Error during date sync execution: {e}")
@@ -684,12 +732,14 @@ class SyncAgent:
         self.update_public_ip()
         try:
             extractor = DBFHistoricalExtractor(dbf_dir)
-            turnos, horas = extractor.extract_all(self.local_id)
+            turnos, horas, gastos_raw = extractor.extract_all(self.local_id)
+            gastos = self._gastos_rows(gastos_raw)
             
             t_success = self.supabase.upload_in_batches("ventas_resumen_diario", turnos, "local_id,fecha,turno", batch_size=200)
             h_success = self.supabase.upload_in_batches("ventas_por_hora", horas, "local_id,fecha,hora", batch_size=500)
+            g_success = self.supabase.upload_in_batches("gastos", gastos, "id", batch_size=200)
             
-            if t_success and h_success:
+            if t_success and h_success and g_success:
                 logger.info("HISTORICAL UPLOAD AND SYNC COMPLETED SUCCESSFULLY!")
                 return True
             else:
@@ -719,7 +769,20 @@ def main():
     parser.add_argument("--supabase-url", default=os.getenv("SUPABASE_URL"), help="URL de Supabase")
     parser.add_argument("--supabase-key", default=os.getenv("SUPABASE_KEY"), help="API/Service Key de Supabase")
 
+    parser.add_argument("--inspect-dbf", default=None, help="Muestra los campos y 3 registros de un DBF (p. ej. gastos.DBF) y termina")
+
     args = parser.parse_args()
+
+    if args.inspect_dbf:
+        t = DBF(args.inspect_dbf, load=False, encoding='cp1252', ignore_missing_memofile=True,
+                char_decode_errors='replace', parserclass=CustomFieldParser)
+        print(f"Registros: {len(t)}")
+        print("Campos:", [(f.name, f.type, f.length) for f in t.fields])
+        for i, rec in enumerate(t):
+            if i >= 3:
+                break
+            print(dict(rec))
+        return
 
     # Log variables availability (do not print key for security)
     if args.supabase_url and args.supabase_key:

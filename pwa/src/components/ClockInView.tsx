@@ -40,7 +40,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
   const [employeePin, setEmployeePin] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | ''; text: string }>({ type: '', text: '' });
-  
+
   // Search query for employees
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -117,7 +117,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
         if (!error && data) {
           const localIp = data.ip_publica || '';
           setExpectedIp(localIp);
-          
+
           // IP matches, or if no IP is configured yet in DB (to allow initial setup)
           if (!localIp || detectedClientIp === localIp) {
             setIsIpValid(true);
@@ -252,7 +252,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
         });
         setEmployeePin('');
         setSelectedEmployeeId('');
-        
+
         // Auto clear success message after 3.5s
         setTimeout(() => {
           setStatusMsg({ type: '', text: '' });
@@ -291,7 +291,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
   const activeLocales = locales.filter(l => l.id !== 'all');
 
   // Filter employees list based on search
-  const filteredEmployees = employees.filter(emp => 
+  const filteredEmployees = employees.filter(emp =>
     emp.nombre.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -338,7 +338,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
           <div className="p-3 rounded-2xl bg-slate-900 border border-slate-850 flex flex-col items-center">
             <div className="flex w-full items-center justify-between mb-2">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">PIN del Administrador</span>
-              <button 
+              <button
                 type="button"
                 onClick={() => setBypassRequired(false)}
                 className="text-slate-500 hover:text-slate-300"
@@ -359,7 +359,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                 );
               })}
             </div>
-            
+
             {/* Virtual Keypad for Bypass inline */}
             <div className="grid grid-cols-3 gap-2 w-full max-w-[200px]">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
@@ -420,7 +420,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
             </div>
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight font-heading">ERP Restaurante</h1>
+            <h1 className="text-base font-bold tracking-tight font-heading">Baryk</h1>
             <p className="text-[10px] text-amber-500 font-semibold tracking-wider uppercase">Registro de Jornada</p>
           </div>
         </div>
@@ -468,11 +468,10 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                       setSelectedEmployeeId('');
                       setSearchQuery('');
                     }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      selectedLocalId === l.id
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${selectedLocalId === l.id
                         ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
                         : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
-                    }`}
+                      }`}
                   >
                     <Store className="h-3.5 w-3.5" />
                     {l.nombre}
@@ -573,7 +572,7 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
       )}
 
       <footer className="py-4 sm:py-6 text-center text-[10px] text-slate-600">
-        &copy; {new Date().getFullYear()} ERP Restaurante. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} Baryk. Todos los derechos reservados.
       </footer>
     </div>
   );

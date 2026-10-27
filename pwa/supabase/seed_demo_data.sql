@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ERP RESTAURANTE: DEMO SEED DATA SCRIPT
+-- Baryk: DEMO SEED DATA SCRIPT
 -- ==============================================================================
 -- Este script crea un usuario demo en Supabase Auth, asigna una empresa demo con
 -- su PIN de administración a nivel de EMPRESA, y puebla locales, empleados,

@@ -15,12 +15,7 @@ import {
 
 // Restaurant logo icon
 const RestaurantLogo: React.FC<{ className?: string }> = ({ className = 'h-6 w-6' }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M7 2v4c0 1.1.9 2 2 2v13a1 1 0 0 0 2 0V8c1.1 0 2-.9 2-2V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    <line x1="9" y1="2" x2="9" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    <line x1="11" y1="2" x2="11" y2="6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    <path d="M16 2c0 0 2 2.5 2 6s-2 5-2 5v8a1 1 0 0 1-2 0V2h2z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
-  </svg>
+  <img src="/images/logo.png" alt="Logo" className="h-12 w-12" />
 );
 
 interface OwnerLoginViewProps {
@@ -102,14 +97,11 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
         {/* Brand */}
         <div className="flex items-center justify-center gap-3 mb-2">
           <div className="relative h-12 w-12 rounded-2xl flex items-center justify-center shrink-0">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 opacity-90" />
-            <div className="absolute inset-[2px] rounded-[14px] bg-stone-950 flex items-center justify-center">
-              <RestaurantLogo className="h-6 w-6 text-amber-400" />
-            </div>
+            <RestaurantLogo className="h-12 w-12 text-amber-400" />
           </div>
           <div className="text-left">
             <h1 className="text-xl font-bold tracking-tight text-white font-heading">
-              ERP Restaurante
+              Baryk
             </h1>
           </div>
         </div>
@@ -165,10 +157,9 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
               setMode("login");
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-              mode === "login"
-                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
-                : "text-stone-400 hover:text-stone-200"
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${mode === "login"
+              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
+              : "text-stone-400 hover:text-stone-200"
               }`}
           >
             Iniciar Sesión
@@ -179,10 +170,9 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
               setMode("register");
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${
-              mode === "register"
-                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
-                : "text-stone-400 hover:text-stone-200"
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${mode === "register"
+              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md font-bold"
+              : "text-stone-400 hover:text-stone-200"
               }`}
           >
             Registrar Restaurante
@@ -236,7 +226,7 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="dueno@restaurante.com"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none focus:red"
               />
             </div>
           </div>
@@ -320,7 +310,7 @@ export const OwnerLoginView: React.FC<OwnerLoginViewProps> = ({
       </div>
 
       <footer className="mt-8 text-center text-[10px] text-slate-600">
-        &copy; {new Date().getFullYear()} ERP Restaurante. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} Baryk. Todos los derechos reservados.
       </footer>
     </div>
   );

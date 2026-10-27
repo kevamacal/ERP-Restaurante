@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 
 // Restaurant logo icon
-const RestaurantLogo: React.FC<{ className?: string }> = ({ className = 'h-6 w-6' }) => (
-  <img src="/images/logo.png" alt="Logo" className="h-12 w-12" />
+const RestaurantLogo: React.FC<{ className?: string }> = ({ className = 'h-12 w-12' }) => (
+  <img src="/images/logo.png" alt="Logo" className={className} />
 );
 
 interface OwnerLoginViewProps {

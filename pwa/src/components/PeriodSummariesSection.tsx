@@ -57,7 +57,7 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
     const monday = parseLocalDate(mondayStr);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    
+
     const format = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
     return `${format(monday)} al ${format(sunday)}`;
   };
@@ -127,6 +127,7 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
       productivity,
       profit,
       foodCost,
+      realGastos,
       hasRealGastos: realGastos > 0
     };
   };
@@ -226,7 +227,7 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
                     <span>Métodos de Pago</span>
                     <span>% Tarjeta / Efec.</span>
                   </div>
-                  
+
                   <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800 flex">
                     <div
                       className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-l-full transition-all duration-500"
@@ -254,22 +255,24 @@ export const PeriodSummariesSection: React.FC<PeriodSummariesSectionProps> = ({
 
                 <div className="grid grid-cols-2 gap-3 bg-slate-100/70 dark:bg-slate-950/40 p-3 rounded-xl border border-slate-200 dark:border-slate-800/60">
                   <div className="space-y-1">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Coste Personal Est.</span>
-                    <span className="text-[11px] font-bold text-slate-900 dark:text-white font-mono block">
+                    <span className="text-[9px] text-rose-500 dark:text-rose-400 font-bold uppercase tracking-wider block">
+                      Gastos Totales
+                    </span>
+                    <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono block">
+                      {s.realGastos.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">
+                      {s.hasRealGastos ? 'datos reales' : 'sin gastos registrados'}
+                    </span>
+                  </div>
+                  <div className="space-y-1 border-l border-slate-200 dark:border-slate-800/60 pl-3">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Coste Personal</span>
+                    <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono block">
                       {s.laborCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                     </span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium font-mono flex items-center gap-0.5">
                       <Clock className="h-3 w-3 text-indigo-400 inline" />
-                      {s.hours.toFixed(1)} hrs ({s.laborCostPct.toFixed(1)}%)
-                    </span>
-                  </div>
-                  <div className="space-y-1 border-l border-slate-200 dark:border-slate-800/60 pl-3">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Productividad</span>
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 font-mono block">
-                      {s.productivity.toFixed(2)} €/h
-                    </span>
-                    <span className="text-[10px] text-slate-600 dark:text-slate-400 block font-mono font-medium">
-                      Horas: <strong className="text-slate-900 dark:text-slate-200">{s.hours.toFixed(1)}h</strong>
+                      {s.hours.toFixed(1)} hrs
                     </span>
                   </div>
                 </div>

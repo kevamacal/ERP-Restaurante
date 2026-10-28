@@ -26,7 +26,7 @@ import type { FichajeConEmpleado, Gasto } from "./types";
 import {
   Euro,
   Receipt,
-  Users,
+  ShoppingBag,
   Clock,
   Calendar,
   Layers,
@@ -278,11 +278,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("sales")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "sales"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
-                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "sales"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
             >
               <Layers className="h-4 w-4" /> Ventas y Resumen
             </button>
@@ -290,11 +289,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("horario")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "horario"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
-                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "horario"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
             >
               <Clock className="h-4 w-4" /> Fichajes y Personal
             </button>
@@ -302,11 +300,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("stats")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "stats"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
-                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "stats"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
             >
               <ChartColumn className="h-4 w-4" /> Estadísticas
             </button>
@@ -314,11 +311,10 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("gastos")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === "gastos"
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
-                  : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === "gastos"
+                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
             >
               <FileText className="h-4 w-4" /> Gastos y Facturas
             </button>
@@ -367,11 +363,11 @@ export const App: React.FC = () => {
               />
 
               <KPICard
-                title="Coste Personal Est."
-                value={`${(shiftMetrics.kpis.costePersonal || 0).toFixed(2)} €`}
-                subtitle={`${(shiftMetrics.kpis.horasTrabajadas || 0).toFixed(1)}h fichadas | ${(shiftMetrics.kpis.laborCostPct || 0).toFixed(1)}% ventas`}
-                icon={Users}
-                color="violet"
+                title="Gasto Total"
+                value={`${(shiftMetrics.kpis.totalGasto || 0).toFixed(2)} €`}
+                subtitle={`Gasto total acumulado durante el día`}
+                icon={ShoppingBag}
+                color="cyan"
               />
 
               <KPICard
@@ -489,9 +485,8 @@ export const App: React.FC = () => {
             key={key}
             type="button"
             onClick={onClick}
-            className={`relative flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all duration-200 cursor-pointer ${
-              check ? 'text-amber-400' : 'text-stone-500 dark:text-stone-500 hover:text-stone-300'
-            }`}
+            className={`relative flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all duration-200 cursor-pointer ${check ? 'text-amber-400' : 'text-stone-500 dark:text-stone-500 hover:text-stone-300'
+              }`}
           >
             {/* Active indicator dot */}
             {check && (

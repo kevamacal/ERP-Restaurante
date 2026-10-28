@@ -93,7 +93,7 @@ export function useShiftMetrics(
             const name = relatedFic?.empleados?.nombre || "Desconocido";
             const rate =
               relatedFic?.empleados?.coste_hora !== undefined &&
-              relatedFic?.empleados?.coste_hora !== null
+                relatedFic?.empleados?.coste_hora !== null
                 ? Number(relatedFic.empleados.coste_hora)
                 : hourlyWage;
             employeePayments[empId] = {
@@ -130,15 +130,13 @@ export function useShiftMetrics(
         ticketMedio: 0,
         ultimaActualizacion: new Date().toISOString(),
         comparativaPct: 0,
-        costePersonal: 0,
-        laborCostPct: 0,
-        productividad: 0,
-        horasTrabajadas: 0,
+        totalGasto: 0
       };
     }
 
     const latestDate = resumenData[0].fecha;
     const dayRecords = resumenData.filter((r) => r.fecha === latestDate);
+    const dayGastos = gastosList.filter((g) => g.fecha === latestDate);
 
     const totalFacturado = dayRecords.reduce(
       (acc, r) => acc + (Number(r.total_facturado) || 0),
@@ -160,16 +158,13 @@ export function useShiftMetrics(
       (acc, r) => acc + (Number(r.total_pendiente) || 0),
       0
     );
+    const totalGasto = dayGastos.reduce(
+      (acc, r) => acc + (Number(r.importe) || 0),
+      0
+    )
     const ticketMedio = numTickets > 0 ? totalFacturado / numTickets : 0;
     const lastUpdate =
       dayRecords[0].ultima_actualizacion || new Date().toISOString();
-
-    const horasTrabajadas = dailyWorkedHours[latestDate] || 0;
-    const costePersonal = shiftMetrics.dailyCost[latestDate] || 0;
-    const laborCostPct =
-      totalFacturado > 0 ? (costePersonal / totalFacturado) * 100 : 0;
-    const productividad =
-      horasTrabajadas > 0 ? totalFacturado / horasTrabajadas : 0;
 
     return {
       totalFacturado,
@@ -180,12 +175,9 @@ export function useShiftMetrics(
       ticketMedio,
       ultimaActualizacion: lastUpdate,
       comparativaPct: 12.4,
-      costePersonal,
-      laborCostPct,
-      productividad,
-      horasTrabajadas,
+      totalGasto
     };
-  }, [resumenData, dailyWorkedHours, shiftMetrics]);
+  }, [resumenData, gastosList]);
 
   const historico = useMemo(() => {
     const getWeekIdentifier = (dateStr: string) => {

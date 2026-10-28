@@ -36,6 +36,7 @@ export interface VentasResumen {
   total_tarjeta: number;
   total_pendiente?: number;
   ultima_actualizacion: string;
+  total_gasto?: number;
 }
 
 export interface VentaHora {
@@ -56,10 +57,7 @@ export interface SummaryKPI {
   ticketMedio: number;
   ultimaActualizacion: string;
   comparativaPct: number;
-  costePersonal?: number;
-  laborCostPct?: number;
-  productividad?: number;
-  horasTrabajadas?: number;
+  totalGasto: number;
 }
 
 export interface HistoricoItem {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getSupabase } from "../supabaseClient";
-import type { Local, VentasResumen, VentaHora } from "../types";
+import type { Local, VentasResumen, VentaHora, Gasto } from "../types";
 
 export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: string) {
   const [selectedLocal, setSelectedLocal] = useState<string>("all");
@@ -8,6 +8,7 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
   const [localesList, setLocalesList] = useState<Local[]>([]);
   const [resumenData, setResumenData] = useState<VentasResumen[]>([]);
   const [ventasHoraData, setVentasHoraData] = useState<VentaHora[]>([]);
+  const [gastosData, setGastosData] = useState<Gasto[]>([]);
 
   const fetchLocales = useCallback(async () => {
     const supabase = getSupabase();
@@ -118,8 +119,29 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
           setVentasHoraData([]);
         }
       }
+
+      // --- Gastos ---
+      let queryGastos = supabase
+        .from("gastos")
+        .select("id, local_id, empresa_id, fecha, concepto, categoria, importe, tipo")
+        .order("fecha", { ascending: false });
+
+      if (activeEmpresaId) {
+        queryGastos = queryGastos.eq("empresa_id", activeEmpresaId);
+      }
+
+      if (selectedLocal !== "all") {
+        queryGastos = queryGastos.eq("local_id", selectedLocal);
+      }
+
+      const { data: gData, error: gErr } = await queryGastos;
+      if (!gErr && gData) {
+        setGastosData(gData as Gasto[]);
+      } else {
+        setGastosData([]);
+      }
     } catch (e) {
-      console.error("Error cargando ventas de Supabase:", e);
+      console.error("Error cargando datos de Supabase:", e);
     }
     setLoading(false);
   }, [selectedLocal, empresaId]);
@@ -135,6 +157,15 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
   }, [fetchData, isAdminAuthenticated]);
 
   const dailyResumenData = useMemo(() => {
+    // Agregar gastos reales por fecha (solo tipo 'gasto', no ingresos/bonificaciones)
+    const gastosPorFecha = new Map<string, number>();
+    gastosData.forEach((g) => {
+      if (!g.tipo || g.tipo === "gasto") {
+        const prev = gastosPorFecha.get(g.fecha) ?? 0;
+        gastosPorFecha.set(g.fecha, prev + (Number(g.importe) || 0));
+      }
+    });
+
     const grouped = new Map<string, VentasResumen>();
 
     resumenData.forEach((row) => {
@@ -156,6 +187,7 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
           total_efectivo: totalEfectivo,
           total_tarjeta: totalTarjeta,
           ultima_actualizacion: ultimaActualizacion,
+          total_gasto: gastosPorFecha.get(dateKey) ?? 0,
         });
       } else {
         grouped.set(dateKey, {
@@ -173,7 +205,7 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
     return Array.from(grouped.values()).sort((a, b) =>
       b.fecha.localeCompare(a.fecha),
     );
-  }, [resumenData, selectedLocal]);
+  }, [resumenData, gastosData, selectedLocal]);
 
   return {
     selectedLocal,
@@ -182,6 +214,7 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
     localesList,
     resumenData,
     ventasHoraData,
+    gastosData,
     dailyResumenData,
     fetchData,
   };

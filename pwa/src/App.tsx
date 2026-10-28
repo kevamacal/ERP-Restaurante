@@ -9,6 +9,7 @@ import { AdminPinLock } from "./components/AdminPinLock";
 import { AuthModal } from "./components/auth/AuthModal";
 import { OwnerLoginView } from "./components/auth/OwnerLoginView";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { ConfirmDeleteModal, type DeleteModalState } from "./components/ConfirmDeleteModal";
 import { HorarioAdminSection } from "./components/HorarioAdminSection";
 import { GastosSection } from "./components/GastosSection";
@@ -198,6 +199,11 @@ export const App: React.FC = () => {
     setDeleteModalState(null);
   };
 
+  // Block rendering until auth session is resolved to avoid incorrect data flash
+  if (auth.loading) {
+    return <LoadingScreen message="Verificando sesión..." />;
+  }
+
   if (!isDeviceAuthorized && !auth.user) {
     return (
       <OwnerLoginView
@@ -212,6 +218,12 @@ export const App: React.FC = () => {
   }
 
   if (view === "fichar") {
+    // Wait for locales to load so ClockInView can set a default local correctly
+    if (!dashboardData.localesLoaded) {
+      return <LoadingScreen message="Cargando establecimientos..." />;
+    }
+    // localesLoaded === true but empty → render ClockInView anyway (will show empty state)
+
     return (
       <ClockInView
         locales={dashboardData.localesList}

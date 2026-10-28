@@ -5,6 +5,7 @@ import type { Local, VentasResumen, VentaHora, Gasto } from "../types";
 export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: string) {
   const [selectedLocal, setSelectedLocal] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(false);
+  const [localesLoaded, setLocalesLoaded] = useState<boolean>(false);
   const [localesList, setLocalesList] = useState<Local[]>([]);
   const [resumenData, setResumenData] = useState<VentasResumen[]>([]);
   const [ventasHoraData, setVentasHoraData] = useState<VentaHora[]>([]);
@@ -49,6 +50,8 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
       }
     } catch (e) {
       console.error("Error cargando locales de Supabase:", e);
+    } finally {
+      setLocalesLoaded(true);
     }
   }, [empresaId]);
 
@@ -211,6 +214,7 @@ export function useDashboardData(isAdminAuthenticated: boolean, empresaId?: stri
     selectedLocal,
     setSelectedLocal,
     loading,
+    localesLoaded,
     localesList,
     resumenData,
     ventasHoraData,

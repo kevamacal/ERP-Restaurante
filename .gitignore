@@ -1,7 +1,13 @@
+# Archivos de ejecución de la base de datos
 .env
 *.DBF
 *.db
+*.sh
 
+# Deploy
 .vercel/
 supabase/.temp
 pwa/supabase/.temp
+
+# Debugger
+launch.json

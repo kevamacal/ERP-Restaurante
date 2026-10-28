@@ -74,6 +74,15 @@ export const App: React.FC = () => {
   // Custom hooks integration
   const empresaId = auth.empresa?.id;
   const dashboardData = useDashboardData(isAdminAuthenticated, empresaId);
+
+  // Auto-select the only real local so the header pill shows it as active
+  useEffect(() => {
+    const realLocales = dashboardData.localesList.filter((l) => l.id !== "all");
+    if (realLocales.length === 1 && dashboardData.selectedLocal === "all") {
+      dashboardData.setSelectedLocal(realLocales[0].id);
+    }
+  }, [dashboardData.localesList]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const employeeMgmt = useEmployeeManagement(
     dashboardData.selectedLocal,
     isAdminAuthenticated,

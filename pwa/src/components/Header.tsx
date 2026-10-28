@@ -121,26 +121,32 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Local selector + desktop controls */}
         <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-          {/* Local Pills */}
-          <div className="flex items-center bg-stone-100/80 dark:bg-stone-900/90 p-1 rounded-xl border border-stone-200 dark:border-stone-800 overflow-x-auto max-w-full gap-0.5">
-            {locales.map((loc) => {
-              const isSelected = selectedLocal === loc.id;
-              return (
-                <button
-                  key={loc.id}
-                  type="button"
-                  onClick={() => onSelectLocal(loc.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
-                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/70 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800/60'
-                  }`}
-                >
-                  {loc.nombre}
-                </button>
-              );
-            })}
-          </div>
+          {/* Local Pills — hide "Todos los Locales" when there is only one real local */}
+          {(() => {
+            const realLocales = locales.filter((l) => l.id !== 'all');
+            const visibleLocales = realLocales.length === 1 ? realLocales : locales;
+            return (
+              <div className="flex items-center bg-stone-100/80 dark:bg-stone-900/90 p-1 rounded-xl border border-stone-200 dark:border-stone-800 overflow-x-auto max-w-full gap-0.5">
+                {visibleLocales.map((loc) => {
+                  const isSelected = selectedLocal === loc.id;
+                  return (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onClick={() => onSelectLocal(loc.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
+                          : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/70 dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-800/60'
+                      }`}
+                    >
+                      {loc.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* Desktop controls */}
           <div className="hidden sm:flex items-center gap-2">

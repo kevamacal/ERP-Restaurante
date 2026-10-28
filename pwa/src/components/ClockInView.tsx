@@ -451,13 +451,13 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
           </div>
         ) : (
           /* Work Clock-in form */
-          <div className="glass-card max-w-md w-full p-5 sm:p-7 rounded-3xl border border-stone-800 flex flex-col">
-            <h2 className="text-lg sm:text-xl font-bold font-heading mb-1 text-center">Fichar Entrada / Salida</h2>
-            <p className="text-[11px] text-stone-400 mb-5 text-center">Selecciona tu establecimiento y toca tu nombre.</p>
+          <div className="glass-card max-w-md md:max-w-2xl w-full p-5 sm:p-7 md:p-10 rounded-3xl border border-stone-800 flex flex-col">
+            <h2 className="text-lg sm:text-xl md:text-3xl font-bold font-heading mb-1 text-center">Fichar Entrada / Salida</h2>
+            <p className="text-[11px] md:text-sm text-stone-400 mb-5 md:mb-7 text-center">Selecciona tu establecimiento y toca tu nombre.</p>
 
             {/* Select Local (Visual Tabs instead of dropdown) */}
-            <div className="space-y-1.5 mb-4">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 block">Establecimiento</span>
+            <div className="space-y-1.5 mb-4 md:mb-6">
+              <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-stone-400 block">Establecimiento</span>
               <div className="flex bg-stone-900 border border-stone-800 p-1 rounded-xl overflow-x-auto gap-1">
                 {activeLocales.map((l) => (
                   <button
@@ -468,12 +468,12 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                       setSelectedEmployeeId('');
                       setSearchQuery('');
                     }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${selectedLocalId === l.id
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
-                        : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 md:py-3.5 rounded-lg text-xs md:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${selectedLocalId === l.id
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25'
+                      : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
                       }`}
                   >
-                    <Store className="h-3.5 w-3.5" />
+                    <Store className="h-3.5 w-3.5 md:h-5 md:w-5" />
                     {l.nombre}
                   </button>
                 ))}
@@ -489,20 +489,20 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
             {isIpValid && (
               <div className="space-y-3 animate-fade-in flex-1 flex flex-col">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Busca tu Nombre</span>
+                  <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-slate-400 block">Busca tu Nombre</span>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 md:h-5 md:w-5 text-stone-500" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Escribe para buscar..."
-                      className="w-full bg-stone-900 border border-stone-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors placeholder:text-stone-600"
+                      className="w-full bg-stone-900 border border-stone-800 rounded-xl pl-9 md:pl-11 pr-4 py-2 md:py-3.5 text-xs md:text-base text-white focus:outline-none focus:border-amber-500 transition-colors placeholder:text-stone-600"
                     />
                   </div>
                 </div>
 
-                <div className="max-h-[220px] overflow-y-auto grid grid-cols-2 gap-2 pr-1 mt-1">
+                <div className="max-h-[220px] md:max-h-none overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 pr-1 mt-1">
                   {filteredEmployees.map((emp) => {
                     const initials = emp.nombre
                       .split(' ')
@@ -531,19 +531,19 @@ export const ClockInView: React.FC<ClockInViewProps> = ({ locales, onGoToAdmin }
                           setEmployeePin('');
                           setStatusMsg({ type: '', text: '' });
                         }}
-                        className="p-2.5 rounded-xl border border-stone-800 bg-stone-900/60 hover:bg-stone-800/80 hover:border-amber-500/30 active:scale-95 text-left flex items-center gap-2.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+                        className="p-2.5 md:p-5 md:flex-col md:items-center md:justify-center md:gap-3 md:text-center rounded-xl border border-stone-800 bg-stone-900/60 hover:bg-stone-800/80 hover:border-amber-500/30 active:scale-95 text-left flex items-center gap-2.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
                       >
-                        <div className={`h-7 w-7 rounded-full shrink-0 flex items-center justify-center font-bold text-[10px] border shadow-sm ${colorClass}`}>
+                        <div className={`h-7 w-7 md:h-14 md:w-14 rounded-full shrink-0 flex items-center justify-center font-bold text-[10px] md:text-xl border shadow-sm ${colorClass}`}>
                           {initials}
                         </div>
-                        <span className="text-[11px] font-semibold text-white truncate leading-none">{emp.nombre}</span>
+                        <span className="text-[11px] md:text-base font-semibold text-white truncate leading-none">{emp.nombre}</span>
                       </button>
                     );
                   })}
 
                   {filteredEmployees.length === 0 && (
                     <p className="col-span-2 text-center text-slate-500 text-xs py-8">
-                      No hay empleados activos en esta sucursal.
+                      No hay empleados activos en este establecimiento.
                     </p>
                   )}
                 </div>
